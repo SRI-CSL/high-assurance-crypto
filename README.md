@@ -5,9 +5,15 @@ This repo contains software for projects focusing on computer-aided verification
 
 # Software 
 * [High-assurance MPC Evaluator](https://github.com/SRI-CSL/high-assurance-crypto/edit/main/high-assur-mpc.md)
-* (Coming Soon) [High-assurance MPC in the Head based ZK Evaluator](https://github.com/SRI-CSL/high-assurance-crypto/edit/main/high-assur-mith-zk.md)
+* (Coming Soon) [High-assurance MPC-in-the-Head based ZK Evaluator](https://github.com/SRI-CSL/high-assurance-crypto/edit/main/high-assur-mith-zk.md)
 
 # Papers
-* ACM CCS'19
+* (Coming Soon)Preprint: High-assurance MPC-in-the-Head based ZK Evaluato
+* ACM CCS'19: High-assurance MPC Evaluator
 
 # Project Members
+* Barbosa
+* Eldefrawy
+* Graham
+* Pereira
+* Zeilberger
