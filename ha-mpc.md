@@ -1,6 +1,6 @@
 # Computer-aided Verification and Synthesis of Secure Multiparty Computation (MPC) Protocols
 
-This repository contains software for projects focusing on computer-aided verification and automated synthesis of high-assurance secure multiparty computation (MPC) protocols.
+This repository contains EasyCrypt formalization and other software for computer-aided verification and automated synthesis of high-assurance secure multiparty computation (MPC) protocols.
 
 ## Table of contents
 
