@@ -7,7 +7,7 @@ This repository contains software for projects focusing on computer-aided verifi
 
 
 # Team
-- Karim Eldefrawy
+- [Karim Eldefrawy](https://keldefrawy.github.io/)
 - Stéphane Graham-Lengrand
 - Vitor Pereira
 - Hadas Zeilberger
