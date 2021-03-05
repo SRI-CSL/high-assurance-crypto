@@ -3,7 +3,7 @@
 This repository contains software for projects focusing on computer-aided verification and automated synthesis of high-assurance cryptographic protocols and algorithms.
 
 # Projects
-* [A High-Assurance Evaluator for Machine-Checked Secure Multiparty Computation](https://github.com/SRI-CSL/high-assurance-crypto/edit/main/ha-mpc.md)
+* [Machine-Checked Secure Multiparty Computation](https://github.com/SRI-CSL/high-assurance-crypto/edit/main/ha-mpc.md)
 
 
 # Team
