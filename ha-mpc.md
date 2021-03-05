@@ -1,4 +1,4 @@
-# Machine-Checked Secure Multiparty Computation
+# Computer-aided Verification and Synthesis of Secure Multiparty Computation (MPC) Protocols
 
 This repository contains software for projects focusing on computer-aided verification and automated synthesis of high-assurance cryptographic protocols and algorithms.
 
