@@ -1,4 +1,4 @@
-# High-assurance Cryptographic Protocols and Algorithms
+# A High-Assurance Evaluator for Machine-Checked Secure Multiparty Computation
 
 This repository contains software for projects focusing on computer-aided verification and automated synthesis of high-assurance cryptographic protocols and algorithms.
 
