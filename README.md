@@ -3,7 +3,7 @@
 This repository contains SRI's public work focusing on computer-aided verification and automated synthesis of high-assurance cryptographic protocols and algorithms.
 
 # Projects
-* [Computer-aided Verification and Synthesis of Secure Multiparty Computation (MPC) Protocols](https://github.com/SRI-CSL/high-assurance-crypto/edit/main/ha-mpc.md)
+* [Computer-aided Verification and Synthesis of Secure Multiparty Computation (MPC) Protocols](https://github.com/SRI-CSL/high-assurance-crypto/ha-mpc.md)
 
 
 # Team
