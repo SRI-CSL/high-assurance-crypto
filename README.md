@@ -3,8 +3,8 @@
 This repository contains SRI's public work focusing on computer-aided verification and automated synthesis of high-assurance cryptographic protocols and algorithms.
 
 # Projects
-* [(Coming Soon!) Machine-checked ZKP for NP-relations: Formally Verified Security Proofs and Implementations of MPC-in-the-Head](https://github.com/SRI-CSL/high-assurance-crypto/blob/main/ha-zk.md)
 * [Computer-aided Verification and Synthesis of Secure Multiparty Computation (MPC) Protocols](https://github.com/SRI-CSL/high-assurance-crypto/blob/main/ha-mpc.md)
+* (Coming Soon!) [Machine-checked ZKP for NP-relations: Formally Verified Security Proofs and Implementations of MPC-in-the-Head](https://github.com/SRI-CSL/high-assurance-crypto/blob/main/ha-zk.md)
 
 
 
