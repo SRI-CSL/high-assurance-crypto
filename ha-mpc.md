@@ -2,8 +2,12 @@
 
 This repository contains EasyCrypt formalization and other software for computer-aided verification and automated synthesis of high-assurance secure multiparty computation (MPC) protocols.
 
-## Table of contents
+# Papers
+* [A High-Assurance Evaluator for Machine-Checked Secure Multiparty Computation](https://eprint.iacr.org/2019/922)
 
+
+## Table of contents
+* [Papers](#papers)
 * [Dependencies](#dependencies)
 	* [OCaml](#ocaml)
 	* [EasyCrypt](#easycrypt)
@@ -12,7 +16,11 @@ This repository contains EasyCrypt formalization and other software for computer
 * [Software](#software)
 	* [High-assurance MPC evaluator](#high-assurance-mpc)
 	* [EasyCrypt extraction tool](#easycrypt-extraction-tool)
-* [Papers](#papers)
+
+
+# Papers
+* [A High-Assurance Evaluator for Machine-Checked Secure Multiparty Computation](https://eprint.iacr.org/2019/922)
+
 
 ## Dependencies
 
@@ -86,6 +94,4 @@ A detailed explanation of the folder organization, as well as running instructio
 
 ### EasyCrypt extraction tool
 
-# Papers
 
-* [A High-Assurance Evaluator for Machine-Checked Secure Multiparty Computation](https://eprint.iacr.org/2019/922)
