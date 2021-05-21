@@ -5,13 +5,18 @@ The project contains a security proof of the [MPC-in-the-Head](https://web.cs.uc
 To demonstrate the usability of our verified MitH implementation, we provide a wrapper that is able to take as input any relation described in the IR0 format and evaluate it by invoking our verified implementation.
 
 ## Table of contents
-
+* [Papers](#papers)
 * [Folder contents](#folder-contents)
 * [Proof organization](#proof-organization)
 * [Verifying the EasyCrypt formalization](#verifying-the-easycrypt-formalization)
 * [Verified implementation](#verified-implementation)
 	* [Code organization](#code-organization)
 	* [Building the verified implementation](#building-the-verified-implementation)
+
+
+* [Papers](#papers)
+
+
 
 ## Folder contents
 
