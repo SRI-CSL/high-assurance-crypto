@@ -3,7 +3,7 @@
 This repository contains EasyCrypt formalization and other software for computer-aided verification and automated synthesis of high-assurance secure multiparty computation (MPC) protocols.
 
 # Papers
-* [A High-Assurance Evaluator for Machine-Checked Secure Multiparty Computation](https://eprint.iacr.org/2019/922)
+* 2019 ACM CCS: [A High-Assurance Evaluator for Machine-Checked Secure Multiparty Computation](https://eprint.iacr.org/2019/922)
 
 
 ## Table of contents
