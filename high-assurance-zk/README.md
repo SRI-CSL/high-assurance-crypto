@@ -16,7 +16,7 @@ To demonstrate the usability of our verified MitH implementation, we provide a w
 
 * [Papers](#papers)
 
-
+[Machine-checked ZKP for NP-relations: Formally Verified Security Proofs and Implementations of MPC-in-the-Head](https://arxiv.org/abs/2104.05516)
 
 ## Folder contents
 
