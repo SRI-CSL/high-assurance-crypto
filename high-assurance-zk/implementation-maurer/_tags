@@ -1,0 +1,32 @@
+# --------------------------------------------------------------------
+true : debug, warn_Z, warn_Y, warn_+28, warn_-23, warn_-27, thread, use_shake128
+
+# --------------------------------------------------------------------
+<src> : include
+<src/*> : include
+<src/*/*> : include
+<src/*/*/*> : include
+<src/*/*/*/*> : include
+
+# --------------------------------------------------------------------
+<src/main.{ml,mli}>      : package(containers), package(yojson), package(ppx_deriving), package(ppx_deriving.std)
+<src/jsonload_maurer.{ml,mli}>      : package(containers), package(yojson), package(ppx_deriving), package(ppx_deriving.std)
+<src/mzkRun.{ml,mli}> : package(yojson, ppx_deriving, ppx_deriving.std, containers, inifiles, yojson, menhirLib, zarith, pcre, batteries)
+<src/mzkRun2.{ml,mli}> : package(yojson, ppx_deriving, ppx_deriving.std, containers, inifiles, yojson, menhirLib, zarith, pcre, batteries)
+<src/*.{ml,mli}>      : package(zarith),  package(yojson), thread
+
+<src/Circuit/*.{ml,mli}>      : package(zarith), package(batteries)
+<src/CommitmentScheme/*.{ml,mli}>      : package(zarith), package(batteries)
+<src/MPC/*.{ml,mli}>      : package(zarith), package(batteries)
+<src/MPC/*/*.{ml,mli}>      : package(zarith), package(batteries)
+<src/MPC/Maurer/*.{ml,mli}>      : package(zarith), package(batteries), use_maurer
+<src/ZeroKnowledge/*.{ml,mli}>      : package(zarith), package(batteries)
+<src/SecretSharing/*.{ml,mli}>      : package(zarith), package(batteries)
+<src/ECLib/*.{ml,mli}>      : package(zarith), package(batteries)
+<src/General/*.{ml,mli}>      : package(zarith), package(batteries)
+<src/InTheHead/*.{ml,mli}>      : package(zarith), package(batteries), use_shake128
+<src/Libjc/shake128/avx2/*.{ml,mli}> : package(zarith), package(batteries)
+<src/Libgc/*.{ml,mli}>      : package(zarith), package(batteries)
+
+<src/*.{native,byte}> : package(zarith),  package(yojson, ppx_deriving, ppx_deriving.std, containers,batteries), use_shake128, use_maurer
+<src/main.native> : package(containers), package(yojson,batteries)

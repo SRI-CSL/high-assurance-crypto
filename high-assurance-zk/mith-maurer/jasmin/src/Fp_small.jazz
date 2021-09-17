@@ -1,0 +1,103 @@
+/*
+   SPECIFIC CODE FOR SMALL-MODULUS (64bit) 
+*/
+
+#ifndef JASMIN_BN_SMALL
+#define JASMIN_BN_SMALL
+
+
+/* @requires: is_prime(p)
+   @requires: 0 <= a,b < p
+   @ensures: res = (a+b)%p */
+inline fn addm( reg u64 p a b ) -> reg u64 {
+  reg bool _cf;
+  reg u64 k1, k2, x;
+  k1 = 0;
+  k2 = 0;
+  _cf, x = a + b;
+  k1 = p if _cf;
+  _cf, x = x - p;
+  k2 = p if _cf;
+  x += k2;
+  x -= k1;
+  return x;
+}
+
+/* @requires: is_prime(p)
+   @requires: 0 <= a,b < p
+   @ensures: res = (a-b)%p */
+inline fn subm( reg u64 p a b ) -> reg u64 {
+  reg bool _cf;
+  reg u64 k, x;
+  k = 0;
+  _cf, x = a - b;
+  k = p if _cf;
+  x += k;
+  return x;
+}
+
+/* @requires: is_prime(p)
+   @requires: 0 <= a,b < p
+   @ensures: res = (a*b)%p */
+inline fn mulm( reg u64 p a b ) -> reg u64 {
+  reg u64 ax, bx, mh, ml, q, r, x;
+  ax = a;
+  bx = b;
+  _, _, _, _, _, mh, ml = #MUL( ax, bx );
+  _, _, _, _, _, q, r = #DIV( mh, ml, p );
+  x = r;
+  return x;
+}
+
+
+
+#ifdef BN_SMALL_EXPORT
+export fn __addm( reg u64 p a b ) -> reg u64 { 
+  reg u64 _p, _a, _b, _r, r;
+  _a = a;
+  _b = b;
+  _p = p;
+  _r = addm(_p, _a, _b);
+  r = _r;
+  return r;
+}
+
+export fn __subm( reg u64 p a b ) -> reg u64 { 
+  reg u64 _p, _a, _b, _r, r;
+  _a = a;
+  _b = b;
+  _p = p;
+  _r = subm(_p, _a, _b);
+  r = _r;
+  return r;
+}
+
+export fn __mulm( reg u64 p a b ) -> reg u64 { 
+  reg u64 _p, _a, _b, _r, r;
+  _a = a;
+  _b = b;
+  _p = p;
+  _r = mulm(_p, _a, _b);
+  r = _r;
+  return r;
+}
+
+#endif
+// end: BN_SMALL_EXPORT
+
+#ifdef BN_SMALL_TOEC
+// export all modular operations to EC
+inline fn toEC()
+{
+  reg u64 p a b r;
+  /* normalized versions */
+  r = addm(p, a, b);
+  r = subm(p, a, b);
+  r = mulm(p, a, b);
+}
+#endif
+// end: BN_SMALL_TOEC
+
+
+#endif
+//end: JASMIN_BN_SMALL

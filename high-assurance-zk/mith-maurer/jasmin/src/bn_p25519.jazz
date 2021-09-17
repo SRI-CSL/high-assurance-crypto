@@ -1,0 +1,389 @@
+/*
+   SPECIFIC P25519 CODE
+*/
+
+#ifndef JASMIN_BN_P25519
+#define JASMIN_BN_P25519
+
+#ifndef NLIMBS
+#define NLIMBS 4
+param int nlimbs = 4;
+#endif
+
+#include "bn_generic.jazz"
+
+#define STACK_RETURN_ADDRESS() #[returnaddress="stack"]
+
+
+/*
+  Utility functions
+*/
+inline fn maskOnCarry
+( inline int mask,
+  reg u64 r,
+  reg bool _cf
+) -> reg u64
+{
+  _cf, r -= r - _cf;
+  r &= mask;
+  return r;
+}
+
+
+/*
+  WRAPPERS FOR 4 limbs...
+*/
+
+/* converts a bunch of registers into a reg array */
+inline fn x2r
+( reg u64 x0 x1 x2 x3
+) -> reg u64[nlimbs]
+{
+  reg u64[nlimbs] r;
+
+  r[0]=x0; r[1]=x1; r[2]=x2; r[3]=x3;
+
+  return r; 
+}
+
+/* converts a reg array into a bunch of registers */
+inline fn r2x
+( reg u64[nlimbs] x
+) -> reg u64, reg u64, reg u64, reg u64
+{
+  reg u64 r0 r1 r2 r3;
+
+  r0=x[0]; r1=x[1]; r2=x[2]; r3=x[3];
+
+  return r0, r1, r2, r3; 
+}
+
+
+/*
+  CODE SPECIFIC FOR p25519
+*/
+
+/* x-P if P<=x else x */
+/* REGS (params + workspace): 4+6 */
+inline fn cminusP
+( reg u64[nlimbs] x
+) -> reg u64[nlimbs]
+{
+  reg u64[nlimbs] t;
+  reg u64 twop63;
+  reg bool cf;
+
+  t = x;
+  twop63 = 1;
+  twop63 <<= 63;
+
+  cf, t[0] += 19;
+  cf, t[1] += 0     + cf;
+  cf, t[2] += 0     + cf;
+  cf, t[3] += twop63 + cf;
+  x[0] = t[0] if cf;
+  x[1] = t[1] if cf;
+  x[2] = t[2] if cf;
+  x[3] = t[3] if cf;
+
+  return x;
+}
+
+/* CONDITIONAL-ADD "P" */
+inline fn caddP
+( reg bool cf,
+  reg u64[nlimbs] x
+) -> reg u64[nlimbs]
+{
+  reg u64[nlimbs] p;
+  reg u64 _zero;
+
+  p[0] = 18446744073709551597;
+  p[1] = 18446744073709551615;
+  p[2] = 18446744073709551615;
+  p[3] = 9223372036854775807;
+  _zero = 0;
+
+  p[0] = _zero if !cf;
+  p[1] = _zero if !cf;
+  p[2] = _zero if !cf;
+  p[3] = _zero if !cf;
+
+  _, x = bn_addc( x, p );
+
+  return x;
+}
+
+
+/*
+  @pre: _zero=0, of=cf=FALSE
+*/
+/* Reduction modulo p25519
+   REGS (params + workspace):  */
+inline fn redp25519
+( reg bool _of _cf, // should be 0
+  reg u64[2*nlimbs] a
+) -> reg u64[nlimbs]
+{
+  inline int i;
+  reg u64 tmp _zero;
+  reg u64[nlimbs] ah al;
+
+  tmp = 38;
+  _zero = 0;
+  ah, _ = bn2_unpack(a);
+  _zero, _of, _cf, a = mul1acc(0,tmp, ah, a, _zero, _of, _cf);
+
+  //
+  _,_,_,_,_,tmp = #IMULri ( a[nlimbs], 38 );
+  _, al = bn2_unpack(a);
+  _cf, al = bn_add1(al, tmp);
+
+  tmp = maskOnCarry(38, tmp, _cf);
+  al[0] += tmp;
+
+  return al;
+}
+
+inline fn redp25519_2
+( reg bool of cf, // should be 0
+  reg u64[2*nlimbs] h
+) -> reg u64[nlimbs]
+{
+  inline int i;
+  reg u64 hi lo _number;
+  reg u64[nlimbs] r;
+
+  _number = 38;
+  for i = 0 to nlimbs-1 {
+    hi, lo      = #MULX ( _number, h[i+nlimbs] );
+    of, h[i]    = #ADOX ( h[i],   lo, of );
+    cf, h[i+1]  = #ADCX ( h[i+1], hi, cf );
+  }
+
+  h[nlimbs], lo   = #MULX ( _number, h[2*nlimbs-1] );
+  of, h[nlimbs-1] = #ADOX ( h[nlimbs-1], lo, of );
+
+  _number = 0;
+  cf, h[nlimbs]   = #ADCX ( h[nlimbs], _number, cf ); 
+  of, h[nlimbs]   = #ADOX ( h[nlimbs], _number, of );
+
+  //
+  _,_,_,_,_,lo = #IMULri ( h[nlimbs], 38 );
+
+  cf, h[0] += lo;
+  for i = 1 to nlimbs {
+    cf, h[i] += _number + cf;
+  }
+
+  _, _number -= _number - cf;
+  _number &= 38;
+  h[0] += _number;
+
+  for i = 0 to nlimbs { r[i] = h[i]; }
+  return r;
+}
+
+/*
+  Normalizes a 4-limb number modulus P (result in range [0..P[)
+*/
+inline fn freeze( reg u64[nlimbs] x ) -> reg u64[nlimbs]
+{
+  x = cminusP ( x );
+  x = cminusP ( x );
+  return x;
+}
+
+/* MULTIPLICATION of two 4-limb numbers */
+STACK_RETURN_ADDRESS()
+fn _mulm
+( reg ptr u64[nlimbs] f, //reg u64 fptr,
+  reg u64 g0 g1 g2 g3
+) -> reg u64, reg u64, reg u64, reg u64
+{
+  reg u64[2*nlimbs] h;
+  reg u64[nlimbs] g;
+  reg bool of cf;
+  reg u64 _zero;
+
+  g = x2r(g0, g1, g2, g3);
+  _zero, of, cf, h = bn_muln ( f, g );
+
+  g = redp25519 ( of, cf, h );
+  g = freeze( g );
+  g0, g1, g2, g3 = r2x(g);
+
+  return g0, g1, g2, g3;
+}
+
+/*
+  Multiplies two 4-limb numbers modulo p25519 (result in range [0..P[)
+*/
+inline fn mulm(stack u64[nlimbs] a, reg u64[nlimbs] b) -> reg u64[nlimbs] {
+  reg u64 g0 g1 g2 g3;
+  g0, g1, g2, g3 = r2x(b);
+  g0, g1, g2, g3 = _mulm(a, g0, g1, g2, g3);
+  b = x2r(g0, g1, g2, g3);
+  return b;
+}
+
+/*
+  Modular addition modulo p25519 (assumes/ensures operands/resul in range [0..p25519[)
+*/
+fn _addm
+( reg u64 f0 f1 f2 f3,
+  reg u64 g0 g1 g2 g3
+) -> reg u64, reg u64, reg u64, reg u64
+{
+  reg u64[nlimbs] f g;
+
+  f = x2r(f0, f1, f2, f3);
+  g = x2r(g0, g1, g2, g3);
+  _, f = bn_addc ( f, g);
+  f = cminusP ( f );
+  f0, f1, f2, f3 = r2x(f);
+  return f0, f1, f2, f3;
+}
+
+/*
+  Modular addition modulo p25519 (assumes/ensures operands/resul in range [0..p25519[)
+*/
+inline fn addm( reg u64[nlimbs] a b ) -> reg u64[nlimbs]
+{
+  reg u64 f0 f1 f2 f3 g0 g1 g2 g3;
+
+  f0, f1, f2, f3 = r2x(a);
+  g0, g1, g2, g3 = r2x(b);
+
+  f0, f1, f2, f3 = _addm(f0, f1, f2, f3, g0, g1, g2, g3);
+
+  a = x2r(f0, f1, f2, f3);
+  return a;
+}
+
+/*
+  Modular subtraction modulo p25519 (assumes/ensures operands/resul in range [0..p25519[)
+*/
+fn _subm
+( reg u64 f0 f1 f2 f3,
+  reg u64 g0 g1 g2 g3
+) -> reg u64, reg u64, reg u64, reg u64
+{
+  reg bool cf;
+  reg u64[nlimbs] f g;
+
+  f = x2r(f0, f1, f2, f3);
+  g = x2r(g0, g1, g2, g3);
+  cf, f = bn_subc(f, g);
+  f = caddP(cf, f);
+  f0, f1, f2, f3 = r2x(f);
+
+  return f0, f1, f2, f3;
+}
+
+/*
+  Modular subtraction modulo p25519 (assumes/ensures operands/resul in range [0..p25519[)
+*/
+inline fn subm( reg u64[nlimbs] a b ) -> reg u64[nlimbs]
+{
+  reg u64 f0 f1 f2 f3 g0 g1 g2 g3;
+
+  f0, f1, f2, f3 = r2x(a);
+  g0, g1, g2, g3 = r2x(b);
+
+  f0, f1, f2, f3 = _subm(f0, f1, f2, f3, g0, g1, g2, g3);
+
+  a = x2r(f0, f1, f2, f3);
+  return a;
+}
+
+/*
+inline fn __submodp25519( reg u64 rp fp gp )
+{
+  reg u64[nlimbs] f g;
+
+  f = load_array(fp);
+  g = load_array(gp);
+  f = sub_freeze(f, g);
+  store_array( rp, f );
+}
+*/
+
+#ifdef BN_P25519_EXPORT
+export fn __addm( reg u64 rp ap bp ) { 
+  reg u64 rp2;
+  reg u64[nlimbs] a b;
+  a = bn_load(ap);
+  b = bn_load(bp);
+  // relax ABI contraints
+  rp2 = rp;
+  a = addm(a, b);
+  bn_store(rp2, a);
+}
+
+export fn __subm( reg u64 rp ap bp ) { 
+  reg u64 rp2;
+  reg u64[nlimbs] a b;
+  a = bn_load(ap);
+  b = bn_load(bp);
+  // relax ABI contraints
+  rp2 = rp;
+  a = subm(a, b);
+  bn_store(rp2, a);
+}
+
+export fn __mulm( reg u64 rp ap bp ) { 
+  stack u64 rp2;
+  reg u64[nlimbs] a b;
+  stack u64[nlimbs] a_s;
+  a = bn_load(ap);
+  a_s = a;
+  b = bn_load(bp);
+  rp2 = rp;
+  a = mulm(a_s, b);
+  rp = rp2;
+  bn_store(rp, a);
+}
+
+export fn __eq( reg u64 ap bp ) -> reg u64 { 
+  reg u64 r;
+  reg u64[nlimbs] a b;
+  a = bn_load(ap);
+  b = bn_load(bp);
+  r = bn_eq( a, b );
+  return r;
+}
+
+export fn __test0( reg u64 ap ) -> reg u64 { 
+  reg u64 r;
+  reg u64[nlimbs] a;
+  a = bn_load(ap);
+  r = bn_test0( a );
+  return r;
+}
+
+#endif
+// end: BN_P25519_EXPORT
+
+#ifdef BN_P25519_TOEC
+// export all modular operations to EC
+inline fn toEC()
+{
+  reg u64[nlimbs] a b r;
+  reg u64 x;
+  reg bool _cf;
+  /* normalized versions */
+  r = addm(a, b);
+  r = subm(a, b);
+  r = mulm(a, b);
+  x = bn_eq(a, b);
+  x = bn_test0(a);
+  _cf = false;
+  x = maskOnCarry(7, x, _cf);
+}
+#endif
+// end: BN_P25519_TOEC
+
+
+#endif
+//end: JASMIN_BN_GENERIC

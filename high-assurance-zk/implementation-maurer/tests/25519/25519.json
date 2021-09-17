@@ -1,0 +1,31 @@
+{"relations":
+ [{"header":{
+     "version":"0",
+     "profile":"arithmetic_circuit",
+     "field_characteristic":["57896044618658097711785492504343953926634992332820282019728792003956564819949",0,0,0],
+     "field_degree":1},
+   "gates":[
+       {"Constant":[3,[0, 0, 0, 0]]},
+       {"Mul":[4,1,1]},
+       {"Mul":[5,2,2]},
+       {"Add":[6,4,5]},
+       {"SMul":[7,0,3]},
+       {"Mul":[8,6,7]},
+       {"AssertZero":8}]}],
+ "instances":
+ [{"header":{
+     "version":"0",
+     "profile":"arithmetic_circuit",
+     "field_characteristic":["57896044618658097711785492504343953926634992332820282019728792003956564819949",0,0,0],
+     "field_degree":1},
+   "common_inputs":[{"id":0,"value":[5,0,0,0]}]}],
+ "witnesses":
+ [{"header":{
+     "version":"0",
+     "profile":"arithmetic_circuit",
+     "field_characteristic":["57896044618658097711785492504343953926634992332820282019728792003956564819949",0,0,0],
+     "field_degree":1},
+   "short_witness":[
+       {"id":1,"value":[3,0,0,0]},
+       {"id":2,"value":[4,0,0,0]}]
+  }]}

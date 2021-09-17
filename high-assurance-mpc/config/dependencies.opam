@@ -1,0 +1,17 @@
+opam-version: "2.0"
+depends: [
+  "ocaml"
+  "batteries" {>= "2.3"}
+  "camlzip"
+  "menhir" {>= "20150921"}
+  "pcre" {>= "7"}
+  "ocaml-inifiles" {>= "1.2"}
+  "zarith"
+  "ocamlbuild"
+  "ocamlfind"
+  "yojson"
+  "cryptokit"
+  "ppx_deriving"
+  "containers"
+  "core_kernel"
+]

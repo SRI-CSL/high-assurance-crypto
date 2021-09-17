@@ -1,0 +1,10 @@
+TOP := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+#### RULES
+
+#### RULES
+
+.PHONY: _clean
+_clean:
+	@rm -f log fail *.eco
+	@find . -name "*.eco" -type f -delete

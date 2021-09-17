@@ -1,216 +1,47 @@
-# VERIFIED IMPLEMENTATION OF THE MPC-IN-THE-HEAD ZK PROTOCOL
+# High-assurance, machine-checked security proof of MPC-in-the-Head and corresponding verified implementations
 
-The project contains a security proof of the [MPC-in-the-Head](https://web.cs.ucla.edu/~rafail/PUBLIC/77.pdf) (MitH) ZK proof protocol, instantiated with the [BGW protocol](https://www.math.ias.edu/~avi/PUBLICATIONS/MYPAPERS/GBW88/GBW88.ps) and with an hash-based commitment scheme, that was machine-checked using EasyCrypt. In addition, the project also contains a  verified OCaml implementation of these two primitives that was synthesized from the EasyCrypt proof.
+This project consists of a verified implementation of the MPC-in-the-Head (MitH) zero-knowledge proof protocol. MitH is a generic construction that yields a zero-knowledge protocol for arbitrary relations. Briefly, MitH accepts relations that are represented as circuits that can be securely evaluated by a Multiparty Computation (MPC) protocol. The prover emulates the MPC protocol “in its head”, obtaining a set of views observed by the parties. It then prepares commitments for each of the views (using any “binding” and “hiding” commitment scheme) and sends those commitments to the verifier. The verifier can then challenge the prover with a set of parties which it wants to “open” (i.e., see the views of those parties) -- the size of this set depends on the specific MPC protocol instantiating the construction. The prover then opens those views to the verifier which accepts the proof iff:
+- it receives valid views with respect to the commitments 
+- the local output of each challenged party is TRUE 
+- the messages observed in the two views are “consistent”, meaning that the incoming messages of on view are consistent with the outgoing messages of the other view.
 
-To demonstrate the usability of our verified MitH implementation, we provide a wrapper that is able to take as input any relation described in the IR0 format and evaluate it by invoking our verified implementation.
+Our verified implementation is twofold. On one hand, we provide a verified implementation of MitH that relies on the BGW protocol combined with a PRF-based commitment scheme. On the other hand, we provide a verified implementation of MitH that uses Maurer’s construction as the MPC protocol. 
 
-## Table of contents
-* [Papers](#papers)
-* [Folder contents](#folder-contents)
-* [Proof organization](#proof-organization)
-* [Verifying the EasyCrypt formalization](#verifying-the-easycrypt-formalization)
-* [Verified implementation](#verified-implementation)
-	* [Code organization](#code-organization)
-	* [Building the verified implementation](#building-the-verified-implementation)
+Both implementations were derived from a (modular) machine-checked security proof of the MitH paradigm that was developed in EasyCrypt, an interactive proof-assistant tailored for cryptographic proofs. Our generic security result was then be instantiated with the selected protocols to derive concrete security results for the two realizations that we provide in this project.
 
+## Project organization
 
-## Papers
-[Machine-checked ZKP for NP-relations: Formally Verified Security Proofs and Implementations of MPC-in-the-Head](https://arxiv.org/abs/2104.05516)
+We separate the different components of our project as follows:
+- `generic-mith` folder ([README](./generic-mith/README.md)) - contains the EasyCrypt development that formalizes the generic MitH framework and proves its security from the properties of abstract components such as MPC protocols, secret-sharing schemes and commitment schemes. It also includes the formalization of general results on Zero-Knowledge Interactive Proof-Systems (c.f. `MetaArguments`);
+- `mith-bgw` folder ([README](./mith-bgw/README.md)) - contains the EasyCrypt development that instantiates the generic MitH framework with a specification of the BGW protocol;
+- `mith-maurer` folder ([README](./mith-maurer/README.md)) - contains the EasyCrypt development that instantiates the generic MitH framework with a specification of Maurer’s MPC protocol, as well as correctness proofs for Jasmin's low-level implementation;
+- `implementation-bgw` ([README](./implementation-bgw/README.md)) - contains the OCaml implementation of the MitH framework instantiated with the BGW protocol, that was extracted from the EasyCrypt specification;
+- `implementation-maurer` ([README](./implementation-maurer/README.md)) - contains the OCaml implementation of the MitH framework instantiated with Maurer’s MPC protocol, that was extracted from the EasyCrypt specification. The core secret-sharing and gate operations in the specification are replaced by an external Jasmin library, that is called within OCaml via a C wrapper
 
-## Folder contents
+Each folder has a dedicated README file with an additional explanation of its contents and dependencies. Additionally, a `config` folder collects required configuration files used in build/verification infrastructure.
 
-The EasyCrypt formalization can be found under the `proof/` folder, whereas the source code of the verified implementation can be found under the `extraction/` folder. The `config` folder has the required configuration file needed to verify the proof.
+## Installation
 
-## Proof organization
+This project relies on a number of dependencies, detailed in each component presented above. For convenience, we provide a `Dockerfile` allowing to assemble a container with all the required dependencies preinstalled. To use the Docker (https://www.docker.com) container, simply type at the toplevel directory of the development:
 
-Our formalization comprises as abstract and modular infrastructure that provides abstract classes for MPC protocols, secret sharing and commitment schemes. These are used to derive the generic MitH result. This abstract framework is then instantiated with concrete protocols and executable code is derived from it. The proof code (under `proof/src/`) is organized as follows:
+```bash
+$> docker build -t mith-docker .
+$> docker run -ti mith-docker
+```
 
-- folder `General` - general definitions that are used multiple times in the implementation. Concretely:
-	- `CyclicGroup.ec` - EasyCrypt cyclic group library
-	- `PrimeField.ec` - EasyCrypt prime field library
-	- `FieldPolynomial.ec` - interface for polynomials over field elements
-	- `Utils.ec` - utilitaries, such as party identifiers and string converstion functions
-	- `ListExt.ec` - extensions to the EasyCrypt library
-- folder `Assumptions/` - cryptographic assumptions required by our proof. Concretely:
-	- `CRPRF.ec` - formalization of collision resistance pseudo-random function (PRF)
-	- `DiscreteLogAssumption.ec` - formalization of the discrete logarithm assumption
-	- `RF.ec` - formalization of a random function
-- folder `Circuit/` - circuit interface. Concretely:
-	- `ACircuit.ec` - abstract interface for the specification of circuits
-	- `ArithmeticCircuit.ec` - arithmetic circuit implementation, that is a concrete realization of the abstract circuit interface
-- folder `CommitmentScheme` - commitment scheme interface. Concretely:
-	- `ACommitmentScheme.ec` - abstract interface for the specification of commitment schemes
-	- `Binding.ec`  - formalization of the binding property
-	- `Hiding.ec` - formalization of the hiding property
-	- `CRPRFCommitment.ec` - a concrete commitment scheme based on the a collision resistant PRF
-- folder `Functionalities` - functionalities interface. Concretely:
-	- `AGateFunctionality.ec` - functionality of a gate
-	- `AProtocolFunctionality.ec` - functionality of a protocol
-	- `AdditionFunctionality.ec` - addition functionality
-	- `MultiplicationFunctionality.ec` - multiplication functionality
-	- `SMultiplicationFunctionality.ec` - scalar multiplication functionality
-	- `RefreshFunctionality.ec` - refresh functionality
-	- `ArithmeticProtocolFunctionality.ec` - specific functionality for arithmetic protocols
-- folder `MPC` - multiparty computation (MPC) interface. Concretely:
-	- `AGate.ec` - abstract interface for the evaluation of gates
-	- `AProtocol.ec` - abstract interface for the evaluation of five party protocols
-	- `ATwoPartyProtocol.ec` - abstract interface for two party protocols
-	- `GatePrivacy.ec` - formalization of the privacy property for gates
-	- `GateWeak.ec` - formalization of the _weak privacy_ security property for gates
-	- `ProtocolPrivacy.ec` - formalization of the privacy property for protocols
-	- `ProtocolWeak.ec` - formalization of the _weak privacy_ property for protocols
-	- `WeakPrivacyComposition.ec` - formalization of the compositional property between a _weak_ protocol and a private gate, yielding a private protocol
-- folder `ArithmeticProtocol/` - interface for arithmetic protocols. Concretely
-	- `AdditionGate.ec` - abstract interface for addition gates
-	- `MultiplicationGate.ec` - abstract interface for multiplication gates
-	- `SMultiplicationGate.ec` - abstract interface for scalar multiplication gates
-	- `ArithmeticProtocol.ec` - interface for arithmetic protocols, that provides a general arithmetic circuit evaluation method based on the arithmetic gates above
-- folder `BGW/` - formalization of the BGW protocol. Concretely:
-	- `Addition.ec` - formalization of the BGW addition gate
-	- `Multiplication.ec` - formalization of the BGW multiplication gate
-	- `SMultiplication.ec` - formalization of the BGW scalar multiplication gate
-	- `BGWGate.ec` - formalization of the BGW protocol, without the final share refresh
-	- `Refresh.ec` - formalization of the BGW refresh gate
-	- `BGW.ec` - formalization of the full BGW protocol, as the composition of the BGW  gate with a refresh gate at the end
-- folder `SecretSharing` - secret sharing interface. Concretely:
-	- `ASecretSharingScheme.ec` - abstract interface for secret sharing schemes
-	- `SecretSharingSchemeSecurity.ec` - formalization of the security of secret sharing schemes
-	- `Shamir.ec` - formalization of the Shamir secret sharing scheme
-- folder `ZeroKnowledge` - zero-knowledge proof protocol interface. Concretely:
-	- `AZKProof.ec` - abstract interface for zero-knowledge proof protocols
-	- `AZKFunctionality.ec` - abstract interface for zero-knowledge functionalities
-	- `Completeness.ec` - formalization of the completeness property
-- folder `SigmaProtocol` - sigma protocol interface. Concretely:
-	- `ASigmaProtocol.ec` - abstract interface for sigma protocols
-	- `SigmaProtocolCompleteness.ec` - formalization of the completeness property for sigma protocols
-	- `SigmaProtocolSoundness.ec` - formalization of the soundness property for sigma protocols
-	- `SigmaProtocolZeroKnowledge.ec` - formalization of the zero-knowledge property for sigma protocols
-- folder `MPCInTheHead` - formalization of MitH. Concretely:
-	- `InTheHeadSigmaProtocol.ec` - modular interface that formalizes the MitH protocol based on the secret sharing, protocol and commitment scheme abstract interfaces and following a sigma protocol structure and that proves the completeness and soundness properties for any party configuration.
-	- `InTheHeadSigmaProtocol5P.ec` - instance of the abstract MitH protocol for a concrete 5-party configuration and that proves the zero-knowledge property.
-	- `ShamirBGWSha256InTheHead.ec` - concrete formalization of the MitH protocol, instantiated with the Shamir secret sharing scheme, the BGW protocol and the hash-based commitment scheme (realized with the SHA256 hash function)
+Once inside the `mith-docker` container, the very same directory structure mentioned above is accessible.
 
-## Verifying the EasyCrypt formalization
+NOTE: if docker runs in a VM (e.g. when using docker-desktop for windows or mac), the memory limit should be set to 4GB.
 
-Our EasyCrypt proof can be verified via the Dockerfile provided.
+## Running & Testing
 
-To build the Docker container, simply type (under the `/proof` folder)  
+The `Makefile` at the top level directory makes available the following targets:
 
-`$> docker build -t proof-docker .`
+- `build-all` - builds the executables;
+- `test-all` - runs some tests for all executables;
+- `check-all` - check all the EasyCrypt proof scripts (can take up to a couple of hours).
+- `cloc-all` - global LineOfCode figures
+- `cloc-comps` - LineOfCode counts per component
 
-You may have to have super user privilegies to do so. Then, it is possible to execute the Docker container via
-
-`$> docker run -ti proof-docker`
-
-which builds EasyCrypt and verifies every proof file. A green message displaying "True" will show if the file is successfully verified, whereas a red message displaying "False" will show if the file is not verified.
-
-## Verified implementation
-
-Our verified implementation follows directly the same architecture of the proof, and is thus comprised of an abstract and modular infrastructure that provides abstract classes for the cryptographic primitives. This framework is fully reusable and can be used with other instantiations of MPC protocols or secret sharing schemes.
-
-### Code organization
-The source code (under `extraction/src/`) is organized as follows:
-- folder `ECLib` - code of EasyCrypt libraries used in the proof. Concretely:
-	- `Core.ml` - core EasyCrypt definitions
-	- `CyclicGroup.ml` - EasyCrypt cyclic group library
-	- `ECList.ml` - EasyCrypt list library
-	- `Option.ml` - EasyCrypt option value
-	- `PrimeField.ml` - EasyCrypt prime field library
-- folder `General` - general definitions that are used multiple times in the implementation. Concretely:
-	- `FieldPolynomial.ml` - interface for polynomials over field elements
-	- `Utils.ml` - utilities, such as party identifiers and string converstion functions
-	- `RF.ml` - generic definition of a random function
-	- `CRPRF.ml` - interface for collision resistance pseudo-random function (PRF)
-- folder `Circuit/` - circuit interface. Concretely:
-	- `ACircuit.ml` - abstract interface for the specification of circuits
-	- `ArithmeticCircuit.ml` - arithmetic circuit implementation, that is a concrete realization of the abstract circuit interface
-- folder `MPC` - multiparty computation (MPC) interface. Concretely:
-	- `AGate.ml` - abstract interface for the evaluation of gates
-	- `AProtocol.ml` - abstract interface for the evaluation of five party protocols
-	- `ATwoPartyProtocol` - abstract interface for two party protocols
-	- `WeakPrivacyComposition.ml` - abstract interface for the composition of a _weak_ secure protocol with a private protocol
-- folder `ArithmeticProtocol/` - interface for arithmetic protocols. Concretely
-	- `AdditionGate.ml` - abstract interface for addition gates
-	- `MultiplicationGate.ml` - abstract interface for multiplication gates
-	- `SMultiplicationGate.ml` - abstract interface for scalar multiplication gates
-- folder `BGW/` - implementation of the BGW protocol. Concretely:
-	- `BGWAddition.ml` - implementation of the BGW addition gate
-	- `BGWMultiplication.ml` - implementation of the BGW multiplication gate
-	- `BGWSMultiplication.ml` - implementation of the BGW scalar multiplication gate
-	- `BGWGate.ml` - implementation of the BGW protocol, without the final share refresh
-	- `BGWRefresh.ml` - implementation of the BGW refresh gate
-	- `BGW.ml` - implementation of the full BGW protocol, as the composition of the BGW gate with a refresh gate at the end
-- folder `SecretSharing` - secret sharing interface. Concretely:
-	- `ASecretSharingScheme.ml` - abstract interface for secret sharing schemes
-	- `Shamir.ml` - implementation of the Shamir secret sharing scheme
-- folder `CommitmentScheme` - commitment scheme interface. Concretely:
-	- `ACommitmentScheme.ml` - abstract interface for the specification of commitment schemes
-	- `CRPRFCommitment.ml` - a concrete commitment scheme based on the a collision resistant PRF
-- folder `ZeroKnowledge` - zero-knowledge proof protocol interface. Concretely:
-	- `AZKProof.ml` - abstract interface for zero-knowledge proof protocols
-	- `ASigmaProtocol.ml` - abstract interface for sigma protocols
-- folder `InTheHead` - implementation of MitH. Concretely:
-	- `InTheHead.ml` - modular interface that specifies the MitH protocol based on the secret sharing, protocol and commitment scheme abstract interfaces
-	- `ShamirBGWSha256InTheHead.ml` - concrete implementation of the MitH protocol, instantiated with the Shamir secret sharing scheme, the BGW protocol and the hash-based commitment scheme (realized with the SHA256 hash function)
-
-### Building the verified implementation
-
-The dependencies required by our MitH implementation include
-- OCaml (available at http://caml.inria.fr/)
-- OCamlbuild
-- ZArith (available at https://github.com/ocaml/Zarith)
-- Cryptokit (available at https://github.com/xavierleroy/cryptokit)
-- Lymp (available at https://github.com/dbousque/lymp)
-- Containers (available at https://github.com/c-cube/ocaml-containers)
-- ppx_deriving (available at https://github.com/ocaml-ppx/ppx_deriving)
-- Yojson (available at https://github.com/ocaml-community/yojson)
-
-All these dependencies can be installed via `opam`, an OCaml package manager, as explained bellow.
-
-#### Installing opam
-
-On Ubuntu and derivatives:
-
-&ensp;&ensp;`$> add-apt-repository ppa:avsm/ppa`
-&ensp;&ensp;`$> apt-get update`
-&ensp;&ensp;`$> apt-get install ocaml ocaml-native-compilers camlp4-extra opam`
-
-On Fedora/OpenSUSE
-
-&ensp;&ensp;`$> sudo dnf update`
-&ensp;&ensp;`$> sudo dnf install ocaml ocaml-docs ocaml-camlp4-devel opam`
-
-On MacOSX (using brew)
-
-&ensp;&ensp;`$> brew install opam`
-
-#### Installing OCaml
-
-OCaml can be installed via opam by typing
-
-&ensp;&ensp;`$> opam switch create 4.11.0`
-
-which installs the 4.11.0 version of the OCaml language. After installing `opam` and `ocaml`, run the following
-
-&ensp;&ensp;`$> opam init`
-&ensp;&ensp;`$> eval $(opam env)`
-
-#### Installing packages
-
-1. Optionally, use opam to install the system dependencies
-
-&ensp;&ensp;`$> opam install depext`
-&ensp;&ensp;`$> opam depext ocamlbuild zarith cryptokit lymp containers ppx_deriving yojson`
-
-2. Install dependencies
-
-&ensp;&ensp;`$> opam install ocamlbuild zarith cryptokit lymp containers ppx_deriving yojson`
-
-#### Building the source code
-
-Once the dependencies have been successefuly installed, the source code can be build inside the dedicated implementation folder `extraction/` folder by doing
-
-&ensp;&ensp;`$> cd extraction`
-&ensp;&ensp;`$> make benchmark`
-
-which complies the code, producing an executable `benchmark.native` that builds an OCaml script that benchmarks the implementations derived from the EasyCrypt proof.
+Notice that running these targets depends on the availability of the required dependencies. Typing just `make` shows a brief help with information on some additional targets.
+In addition, each component has a specific `Makefile` that may give access to some additional targets. In particular, the `implementation-bgw` and `implementation-maurer` folders contain additional instructions on how to run and test each implementation.

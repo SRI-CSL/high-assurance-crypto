@@ -1,0 +1,1536 @@
+#if !defined(BN_P25519) && !defined(BN_SMALL) && !defined(BN_BOOL)
+#define BN_P25519
+#endif
+
+
+param int nShares5 = 10;
+param int nSharesPP5 = 6;
+
+
+#if defined(BN_P25519)
+
+param int shareSize = 4;
+#include "bn_p25519.jazz"
+#define PPARAM() 
+#define PARG() 
+
+inline
+fn load_array(reg u64 in) -> reg u64[4] {
+	reg u64[4] out;
+	inline int i;
+	
+	for i = 0 to shareSize {
+		out[i] = [in + i*8];
+	}
+	
+	return out;
+}
+
+inline
+fn load_array_st(reg u64 in) -> stack u64[4] {
+	stack u64[4] out;
+	inline int i;
+	
+	for i = 0 to shareSize {
+		out[i] = [in + i*8];
+	}
+	
+	return out;
+}
+
+inline 
+fn store_array(reg u64 out, reg u64[4] in){
+    inline int i;
+	
+	for i = 0 to shareSize {
+			[out + i*8] = in[i];
+	}
+	
+}
+
+// ** Wrappers
+inline //adds values in vc1 and vc2, puts in res.
+fn add_wrapper(stack u64 v1S v2S resS){
+        reg u64 v1 v2 vR;
+        reg u64[4] f g r;
+	v1 = v1S;
+	f = load_array(v1);
+	v2 = v2S;
+	g = load_array(v2);
+	r = addm(f,g);
+	vR = resS;
+	store_array(vR, r);
+}
+
+inline //multiplies values in vc1 and vc2, puts in res.
+fn mult_wrapper(stack u64 v1S v2S resS){
+        reg u64 v1 v2 vR;
+	stack u64[4] f;
+        reg u64[4] g r;
+	v1 = v1S;
+	f = load_array_st(v1);
+	v2 = v2S;
+	g = load_array(v2);
+	vR = resS;
+        r = mulm(f,g);
+	vR = resS;
+	store_array(vR, r);	
+}
+
+inline //do v1 minus v2 and put in res
+fn sub_wrapper(stack u64 v1S v2S resS){
+        reg u64 v1 v2 vR;
+        reg u64[4] f g r;
+	v1 = v1S;
+	f = load_array(v1);
+	v2 = v2S;
+	g = load_array(v2);
+	r = subm(f,g);
+	vR = resS;
+	store_array(vR, r);
+}
+
+#elif defined(BN_SMALL) || defined(BN_BOOL)
+
+param int shareSize = 1;
+
+#ifdef BN_SMALL
+
+#define BN_SMALL_TOEC
+#include "Fp_small.jazz"
+#define PPARAM() reg u64 P, 
+#define PARG() P, 
+
+#else
+
+#define BN_BOOL_TOEC
+#include "Fp_bool.jazz"
+#define PPARAM()
+#define PARG()
+
+#endif
+
+// ** Wrappers
+inline //adds values in vc1 and vc2, puts in res.
+fn add_wrapper(PPARAM() stack u64 v1S v2S resS){
+	
+	reg u64 v1;
+	reg u64 v2;
+	reg u64 aux;
+	reg u64 aux2;
+	inline int i;
+	
+	aux = v1S;
+	aux2 = v2S;
+	
+	v1 = [aux];
+	v2 = [aux2];
+	
+	aux = addm(PARG() v1,v2);
+
+	aux2 = resS;
+	[aux2] = aux;
+}
+
+inline //multiplies values in vc1 and vc2, puts in res.
+fn mult_wrapper(PPARAM() stack u64 v1S v2S resS){
+	
+	reg u64 v1;
+	reg u64 v2;
+	reg u64 aux;
+	reg u64 aux2;
+	inline int i;
+	
+	aux = v1S;
+	aux2 = v2S;
+	
+	v1 = [aux];
+	v2 = [aux2];
+	
+	aux = mulm(PARG() v1,v2);
+
+	aux2 = resS;
+	[aux2] = aux;
+}
+
+inline //do v1 minus v2 and put in res
+fn sub_wrapper(PPARAM() stack u64 v1S v2S resS){
+	
+	reg u64 v1;
+	reg u64 v2;
+	reg u64 aux;
+	reg u64 aux2;
+	inline int i;
+	
+	aux = v1S;
+	aux2 = v2S;
+	
+	v1 = [aux];
+	v2 = [aux2];
+	
+	aux = subm(PARG() v1, v2);
+	
+	aux2 = resS;
+	[aux2] = aux;	
+}
+
+#endif
+
+
+/*
+Notes:
+	- Wire Index starts at 1.
+	- SharesPP 5: [[5,9,8,7,4,6],[1,2,9,3,8,7],[6,0,2,5,9,3],[3,8,4,6,0,1],[7,4,0,1,2,5]], nSharesPP = 6, nShares = 10
+	- MultSum 5: [(0,0),(0,1),(0,2),(0,4),(1,3),(1,4),(1,5),(2,0),(2,2),(2,3),(2,4),(3,0),(3,1),(3,2),(3,5),(4,1),(4,2),(4,3),(5,0),(5,3)]
+*/
+
+// ** Auxiliary Functions
+// *******************************************************************************************************************************
+
+inline
+fn getWireIndex5(reg u64 wi) -> reg u64{
+	reg u64 res;
+	res = wi*nSharesPP5;
+	res = res*shareSize;
+	res = res*8;
+	return res;
+}
+
+inline
+fn getShareIndex(inline int si) -> inline int{
+	inline int res;
+	res = si*shareSize;
+	res = res*8;
+	return res;
+}
+
+inline
+fn getMessageIndex(inline int wi) -> inline int{
+	inline int res;
+	res = wi*nSharesPP5;
+	res = res*shareSize;
+	res = res*8;
+	return res;
+}
+
+inline 
+fn copy_share(reg u64 out, reg u64 in){
+    inline int i;
+	
+	for i = 0 to shareSize {
+			[out + i*8] = [in + i*8];
+	}
+	
+}
+
+inline 
+fn copy_message(reg u64 out, reg u64 in){
+    inline int i;
+	
+	for i = 0 to nSharesPP5*shareSize {
+			[out + i*8] = [in + i*8];
+	}
+	
+}
+
+inline 
+fn set0(reg u64 out){
+    inline int i;
+	
+	for i = 0 to shareSize {
+			[out + i*8] = 0;
+	}
+	
+}
+
+inline 
+fn create_sharing(stack u64 outS randomnessS){
+	
+	reg u64 randomness;
+	reg u64 randomness1;
+	reg u64 out;
+	reg u64 aux1;
+	reg u64 aux2;
+	
+	//Create Messages SharesPP 5: [[5,9,8,7,4,6],[1,2,9,3,8,7],[6,0,2,5,9,3],[3,8,4,6,0,1],[7,4,0,1,2,5]]
+	randomness = randomnessS;
+	
+	//[5,9,8,7,4,6]
+	randomness1 = randomness;
+	out = outS;
+	aux2 = randomness1 + (5*shareSize)*8;
+	copy_share(out,aux2);
+	
+	//randomness1 = randomness;
+	//out = out + shareSize*8;
+	//aux2 = randomness1 + (9*shareSize)*8;
+	//copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*16;
+	aux2 = randomness1 + (8*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (7*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (4*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (6*shareSize)*8;
+	copy_share(out,aux2);
+	
+	
+	//[1,2,9,3,8,7]
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (1*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (2*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux1 = outS;
+	aux2 = aux1 + shareSize*8;
+	//aux2 = randomness1 + (9*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (3*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (8*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (7*shareSize)*8;
+	copy_share(out,aux2);
+	
+	//[6,0,2,5,9,3]
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (6*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (0*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (2*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (5*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux1 = outS;
+	aux2 = aux1 + shareSize*8;
+	//aux2 = randomness1 + (9*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (3*shareSize)*8;
+	copy_share(out,aux2);
+	
+	
+	
+	//[3,8,4,6,0,1]
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (3*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (8*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (4*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (6*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (0*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (1*shareSize)*8;
+	copy_share(out,aux2);
+	
+	
+	//[7,4,0,1,2,5]
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (7*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (4*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (0*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (1*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (2*shareSize)*8;
+	copy_share(out,aux2);
+	
+	randomness1 = randomness;
+	out = out + shareSize*8;
+	aux2 = randomness1 + (5*shareSize)*8;
+	copy_share(out,aux2);
+
+}
+
+inline 
+fn create_sharing_const(stack u64 outS conS minusS){
+	
+	reg u64 x;
+	reg u64 minus;
+	reg u64 out;
+	reg u64 aux2;
+	
+	// 5, 1, 6, 3, 7 -> x
+	// 0, 2, 4, 8 -> -x
+	// 9 -> 0
+	//Create Messages SharesPP 5: [[5,9,8,7,4,6],[1,2,9,3,8,7],[6,0,2,5,9,3],[3,8,4,6,0,1],[7,4,0,1,2,5]]
+	out = outS;
+	x = conS;
+	minus = minusS;
+	
+	//[x,0,-x,x,-x,x]
+	out = outS;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+	set0(out);
+	
+	out = out + shareSize*8;
+	// copy_share(out,minus); //already done
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	//[x,-x,0,x,-x,x]
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	set0(out);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	//[x,-x,-x,x,0,x]
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+	set0(out);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+
+	//[x,-x,-x,x,-x,x]
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+    copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+
+	//[x,-x,-x,x,-x,x]
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+	out = out + shareSize*8;
+    copy_share(out,minus);
+	
+	out = out + shareSize*8;
+	copy_share(out,x);
+	
+}
+
+
+
+
+// ** Addition
+// *******************************************************************************************************************************
+
+export
+fn add5(PPARAM() reg u64 status w1 w2 curwire) -> reg u64
+{
+	reg u64 wi;
+	reg u64 aux;
+	reg u64 aux2;
+	reg u64 aux3;
+	reg u64 xi;
+	reg u64 yi;
+	reg u64 resi;
+	reg u64 sw1;
+	reg u64 sw2;
+	reg u64 swres;
+	inline int i;
+	inline int shareN;
+	stack u64 st;
+	stack u64 w1S;
+	stack u64 w2S;
+	stack u64 wresS;
+	stack u64 val1;
+	stack u64 val2;
+	stack u64 resval;
+	
+	
+	wi = curwire;
+	st = status;
+
+	w1S = w1;
+	w2S = w2;
+	wresS = wi;
+	
+
+	for shareN = 0 to nSharesPP5 {
+		i = (shareN*shareSize);
+		
+		sw1 = w1S;
+		sw2 = w2S;
+		swres = wresS;
+
+		xi = sw1*nSharesPP5;
+		xi = xi*shareSize;
+		xi = xi + i;
+
+		yi = sw2*nSharesPP5;
+		yi = yi*shareSize;
+		yi = yi + i;
+
+		resi = swres*nSharesPP5;
+		resi = resi*shareSize;
+		resi = resi + i;
+
+		aux = xi*8;
+		aux2 = st;
+		aux3 = aux2 + aux;
+		val1 = aux3;
+		
+		aux = yi*8;
+		aux2 = st;
+		aux3 = aux2 + aux;
+		val2 = aux3;
+		
+		aux = resi*8;
+		aux2 = st;
+		aux3 = aux2 + aux;
+		resval = aux3;
+
+		add_wrapper(PARG() val1,val2,resval);
+	}
+	
+	
+	aux = wresS;
+	aux = aux + 1;
+	return aux;
+}
+
+// ** Inputs
+// *******************************************************************************************************************************
+
+inline
+fn createLastShare(PPARAM() stack u64 randoms out2,reg u64 secret){
+	reg u64 aux1;
+	reg u64 aux2;
+	reg u64 aux3;
+	reg u64 rd2;
+	reg u64 rd3;
+	inline int i;
+	inline int si;
+	inline int sires;
+	stack u64 secretS;
+	stack u64 x;
+	stack u64 y;
+	stack u64 rd1;
+ 	
+ 	rd3 = randoms;
+	rd2 = out2;
+	secretS = secret;
+
+	copy_share(rd2,rd3);
+
+  for i = 1 to nShares5-1 {
+
+		si = getShareIndex(i);
+		rd3 = randoms;
+		
+		aux1 = rd3 + si;
+		
+		x = aux1;
+		y = out2;
+
+		add_wrapper(PARG() x,y,y);
+	}
+
+	sub_wrapper(PARG() secretS,y,y);
+
+}
+
+
+export //Creates shares from input and messages
+fn input_start5(PPARAM() reg u64 input out randomness)
+{
+	reg u64 secret;
+	reg u64 wireIndex;
+	reg u64 rd;
+	stack u64 outS;
+	stack u64 outS2;
+	stack u64 randomnessS;
+	inline int n;
+	
+	outS = out;
+	n = shareSize*8;
+	rd = out + n;
+	outS2 = rd;
+	rd = randomness;
+	randomnessS = rd;
+	secret = input;
+	
+	//Create last share (9)
+	createLastShare(PARG() randomnessS,outS2,secret);
+
+	//Create Messages SharesPP 5: [[5,9,8,7,4,6],[1,2,9,3,8,7],[6,0,2,5,9,3],[3,8,4,6,0,1],[7,4,0,1,2,5]]
+	create_sharing(outS,randomnessS);
+	
+}
+
+
+export //Places sharesfrom message in memory
+fn input_end5(PPARAM() reg u64 all_messages status curwire) -> reg u64
+{
+	reg u64 wire;
+	reg u64 wi;
+	reg u64 index;
+	reg u64 st;
+	inline int i;
+
+	wi = curwire;
+
+	index = getWireIndex5(wi);
+
+	st = status;
+
+	wire = st + index;
+	
+	copy_message(wire,all_messages);
+	
+	wi = wi+1;
+	return wi;
+	
+}
+
+
+// ** Constants
+// *******************************************************************************************************************************
+
+
+export //Creates shares from input and messages
+fn const_start5(PPARAM() reg u64 input out )
+{
+	reg u64 m;
+	reg u64 x;
+	reg u64 minus;
+	stack u64 conS;
+	stack u64  outS;
+	stack u64  minusS;
+	inline int i;
+	
+	conS = input;
+	outS = out;
+	
+	set0(out);
+	
+	i = (2*shareSize)*8; // share index 2 of party 0 -> -x
+	minus = out + i; 
+	
+	minusS = minus;
+	sub_wrapper(PARG() outS,conS,minusS);
+	
+	
+    // 5, 1, 6, 3, 7 -> x
+	// 0, 2, 4, 8 -> -x
+	// 9 -> 0
+	//Create Messages SharesPP 5: [[5,9,8,7,4,6],[1,2,9,3,8,7],[6,0,2,5,9,3],[3,8,4,6,0,1],[7,4,0,1,2,5]]
+	create_sharing_const(outS,conS,minusS);
+	
+}
+
+
+export //Places shares from message in memory
+fn const_end5(PPARAM() reg u64 message status curwire) -> reg u64
+{
+	reg u64 wire;
+	reg u64 wi;
+	reg u64 index;
+	reg u64 st;
+	reg u64 mindex;
+	inline int i;
+
+	wi = curwire;
+
+	index = getWireIndex5(wi);
+
+	st = status;
+
+	wire = st + index;
+
+	copy_message(wire,message);
+	
+	wi = wi+1;
+	return wi;
+	
+}
+
+export
+fn Smult5(PPARAM() reg u64 status w1 wcons curwire) -> reg u64
+{
+	reg u64 wi;
+	reg u64 aux;
+	reg u64 aux2;
+	reg u64 aux3;
+	reg u64 xi;
+	reg u64 resi;
+	reg u64 sw1;
+	reg u64 swres;
+	inline int i;
+	inline int shareN;
+	stack u64 st;
+	stack u64 w1S;
+	stack u64 consS;
+	stack u64 wresS;
+	stack u64 val1;
+	stack u64 val2;
+	stack u64 resval;
+	
+	
+	wi = curwire;
+
+	st = status;
+	
+
+	w1S = w1;
+	wresS = wi;
+	
+	sw1 = wcons;
+	xi = sw1*nSharesPP5;
+    xi = xi*shareSize;
+	aux = xi*8;
+	aux2 = st;
+	aux3 = aux2 + aux;
+	val2 = aux3;
+	
+	for shareN = 0 to nSharesPP5 {
+		i = (shareN*shareSize);
+		
+		sw1 = w1S;
+		swres = wresS;
+
+		xi = sw1*nSharesPP5;
+		xi = xi*shareSize;
+		xi = xi + i;
+
+		resi = swres*nSharesPP5;
+		resi = resi*shareSize;
+		resi = resi + i;
+
+		aux = xi*8;
+		aux2 = st;
+		aux3 = aux2 + aux;
+		val1 = aux3;
+		
+		aux = resi*8;
+		aux2 = st;
+		aux3 = aux2 + aux;
+		resval = aux3;
+
+		mult_wrapper(PARG() val1,val2,resval);
+	}
+	
+		
+	aux = wresS;
+	aux = aux + 1;
+	return aux;
+}
+
+
+// ** Multiplication
+// *******************************************************************************************************************************
+
+inline
+fn mult_pair5(PPARAM() stack u64 st resvalS sw1 sw2, inline int share1 share2){
+	reg u64 xi;
+	reg u64 yi;	
+	reg u64 aux;
+	reg u64 aux2;
+	reg u64 val1;
+	reg u64 val2;
+	reg u64 sw;
+	inline int i1;
+	inline int i2;
+	stack u64 val1S;
+	stack u64 val2S;
+	
+	
+	i1 = (share1*shareSize);
+	i2 = (share2*shareSize);
+	
+	sw = sw1;
+	xi = sw*nSharesPP5;
+	xi = xi*shareSize;
+	xi = xi + i1;
+	
+	sw = sw2;
+	yi = sw2*nSharesPP5;
+	yi = yi*shareSize;
+	yi = yi + i2;
+
+
+	aux = xi*8;
+	aux2 = st;
+	val1 = aux2 + aux;
+	val1S = val1;
+		
+	aux = yi*8;
+	aux2 = st;
+	val2 = aux2 + aux;
+	val2S = val2;
+	
+	mult_wrapper(PARG() val1S,val2S,resvalS);
+}
+
+
+export
+fn mult_start5(PPARAM() reg u64 status w1 w2 outI randomnessI)
+{
+	reg u64 rd1;
+	reg u64 rd2;
+	reg u64 rd3;
+	reg u64 aux1;
+	reg u64 aux2;
+	reg u64 m;
+	inline int sires;
+	inline int n;
+	inline int nShares;
+	inline int si;
+    stack u64 st;
+	stack u64 sw1;
+	stack u64 sw2;
+	stack u64 valmult;
+	stack u64 randomness;
+	stack u64 out;
+
+	set0(outI);
+	
+	randomness = randomnessI;
+	out = outI;
+
+	st = status;
+	
+	sw1 = w1;
+	sw2 = w2;
+	
+	nShares = nShares5 -1;
+	n = shareSize*8;
+	aux1 = outI + n;
+	valmult = aux1;
+	
+	//MultSum 5: [(0,0),(0,1),(0,2),(0,4),(1,3),(1,4),(1,5),(2,0),(2,2),(2,3),(2,4),(3,0),(3,1),(3,2),(3,5),(4,1),(4,2),(4,3),(5,0),(5,3)]
+	
+	//(0,0)
+	mult_pair5(PARG() st,valmult,sw1,sw2,0,0);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(0,1)
+	mult_pair5(PARG() st,valmult,sw1,sw2,0,1);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(0,2)
+	mult_pair5(PARG() st,valmult,sw1,sw2,0,2);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(0,4)
+	mult_pair5(PARG() st,valmult,sw1,sw2,0,4);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(1,3)
+	mult_pair5(PARG() st,valmult,sw1,sw2,1,3);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(1,4)
+	mult_pair5(PARG() st,valmult,sw1,sw2,1,4);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(1,5)
+	mult_pair5(PARG() st,valmult,sw1,sw2,1,5);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(2,0)
+	mult_pair5(PARG() st,valmult,sw1,sw2,2,0);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(2,2)
+	mult_pair5(PARG() st,valmult,sw1,sw2,2,2);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(2,3)
+	mult_pair5(PARG() st,valmult,sw1,sw2,2,3);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(2,4)
+	mult_pair5(PARG() st,valmult,sw1,sw2,2,4);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(3,0)
+	mult_pair5(PARG() st,valmult,sw1,sw2,3,0);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(3,1)
+	mult_pair5(PARG() st,valmult,sw1,sw2,3,1);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(3,2)
+	mult_pair5(PARG() st,valmult,sw1,sw2,3,2);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(3,5)
+	mult_pair5(PARG() st,valmult,sw1,sw2,3,5);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(4,1)
+	mult_pair5(PARG() st,valmult,sw1,sw2,4,1);
+	add_wrapper(PARG() valmult,out,out);	
+	
+	//(4,2)
+	mult_pair5(PARG() st,valmult,sw1,sw2,4,2);
+	add_wrapper(PARG() valmult,out,out);
+		
+	//(4,3)
+	mult_pair5(PARG() st,valmult,sw1,sw2,4,3);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(5,0)
+	mult_pair5(PARG() st,valmult,sw1,sw2,5,0);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//(5,3)
+	mult_pair5(PARG() st,valmult,sw1,sw2,5,3);
+	add_wrapper(PARG() valmult,out,out);
+	
+	//Create last share (9)
+	aux1 = out;
+	createLastShare(PARG() randomness,valmult,aux1);
+	
+	
+	//Create Messages SharesPP 5: [[5,9,8,7,4,6],[1,2,9,3,8,7],[6,0,2,5,9,3],[3,8,4,6,0,1],[7,4,0,1,2,5]]
+	create_sharing(out,randomness);
+	
+}
+
+export
+fn mult_end5(PPARAM() reg u64 all_messages status curwire) -> reg u64
+{
+	reg u64 wi;
+	reg u64 index;
+	reg u64 st;
+	reg u64 val;
+	reg u64 sumShare;
+	reg u64 aux1;
+	reg u64 aux2;
+	inline int p;
+	inline int mi;
+	inline int i;
+	inline int si;
+	stack u64 wire;
+	stack u64 messages;
+	stack u64 message;
+	stack u64 valS;
+	stack u64 sumShareS;
+	stack u64 wiS;
+	
+
+	wi = curwire;
+	wiS = wi;
+	
+	index = getWireIndex5(wi);
+
+	messages = all_messages;
+	
+	st = status;
+	
+	aux1 = st + index;
+	wire = aux1;
+
+	message = messages;
+
+	for i = 0 to nSharesPP5 {
+		
+		si = (i*shareSize);
+		si = si *8;
+		
+		aux1 = message;
+		val = aux1 + si;
+		
+		aux2 = wire;
+		sumShare = aux2 + si;
+		
+		copy_share(sumShare,val);
+	}
+
+	
+	for p = 1 to 5{ //5 = nParty
+		
+		mi = (p*nSharesPP5*shareSize);
+		mi = mi *8;
+		aux1 = messages;
+		aux2 = aux1 + mi;
+		message = aux2;
+		
+		for i = 0 to nSharesPP5 {
+			
+			si = (i*shareSize);
+			si = si *8;
+			
+			aux1 = message;
+			val = aux1 + si;
+			valS = val;
+			
+			aux2 = wire;
+			sumShare = aux2 + si;
+			sumShareS = sumShare;
+			
+			add_wrapper(PARG() valS,sumShareS,sumShareS);
+		}
+	}
+	
+	aux1 = wiS;
+	aux1 = aux1 + 1;
+	return aux1;
+}
+
+
+// ** Output
+// *******************************************************************************************************************************
+
+export
+fn out_start5(PPARAM() reg u64 status wout messages){
+	
+	reg u64 wire;
+	reg u64 st;
+	reg u64 wi;
+	reg u64 mAux;
+	reg u64 wireAux;
+	reg u64 msgs;
+	inline int mi;
+	inline int p;
+	inline int vi;
+	inline int mN;
+	inline int viAux;
+	
+	st = status;
+	
+	wi = wout*nSharesPP5;
+	wi = wi*shareSize;
+	wi = wi*8;
+	
+	wire = st + wi;
+	
+	
+	for p = 0 to 5 { //5 = nParty
+		
+		mi = p*nSharesPP5;
+		mi = mi*shareSize;
+		mi = mi*8;
+		
+		msgs = messages;
+		mAux = msgs + mi;
+		
+		copy_message(mAux,wire);
+		
+	}
+}
+
+export
+fn out_end5(PPARAM() reg u64 all_messages out curwire)
+{
+	reg u64 wire;
+	reg u64 wi;
+	reg u64 index;
+	reg u64 st;
+	reg u64 message;
+	reg u64 aux1;
+	reg u64 aux2;
+	inline int p;
+	inline int mi;
+	inline int i;
+	inline int si;
+	stack u64 sumShare;
+	stack u64 messages;
+	stack u64 val;
+
+	wi = curwire;
+
+	index = getWireIndex5(wi);
+
+	messages = all_messages;
+	
+	sumShare = out;
+	
+	//SharesPP 5: [[5,9,8,7,4,6],[1,2,9,3,8,7],[6,0,2,5,9,3],[3,8,4,6,0,1],[7,4,0,1,2,5]]
+	
+	//Share 5:
+	
+	mi = (0*nSharesPP5*shareSize); // party 0
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (0*shareSize); // share 0
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+        copy_share(out,aux2);
+	
+	//Share 9:
+	
+	mi = (0*nSharesPP5*shareSize); // party 0
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (1*shareSize); // share 1
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+	//Share 8:
+	
+	mi = (0*nSharesPP5*shareSize); // party 0
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (2*shareSize); // share 2
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+	//Share 7:
+	
+	mi = (0*nSharesPP5*shareSize); // party 0
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (3*shareSize); // share 3
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+	//Share 4:
+	
+	mi = (0*nSharesPP5*shareSize); // party 0
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (4*shareSize); // share 4
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+	//Share 6:
+	
+	mi = (0*nSharesPP5*shareSize); // party 0
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (5*shareSize); // share 5
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+	//Share 1:
+	
+	mi = (1*nSharesPP5*shareSize); // party 1
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (0*shareSize); // share 0
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+	
+	//Share 2:
+	
+	mi = (1*nSharesPP5*shareSize); // party 1
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (1*shareSize); // share 1
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+	//Share 3:
+	
+	mi = (1*nSharesPP5*shareSize); // party 1
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (3*shareSize); // share 3
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+	//Share 0:
+	
+	mi = (2*nSharesPP5*shareSize); // party 2
+	mi = mi *8;
+	aux1 = messages;
+	message = aux1 + mi;
+	
+	si = (1*shareSize); // share 1
+	si = si *8;
+	
+	aux1 = message;
+	aux2 = aux1 + si;
+	val = aux2;
+
+	add_wrapper(PARG() val,sumShare,sumShare);
+	
+}
+
+// ** Dispatch
+// *******************************************************************************************************************************
+
+inline 
+fn copy_message_st(reg u64 out, stack u64[24] in){
+	reg u64 aux;
+    inline int i;
+	
+	for i = 0 to nSharesPP5*shareSize {
+			aux = in[i];
+			[out + i*8] = aux;
+	}
+	
+}
+
+inline 
+fn backup_message(reg u64 in) -> stack u64[24] {
+		
+	stack u64[24] out;
+	inline int i;
+	
+	for i = 0 to nSharesPP5*shareSize {
+		out[i] = [in + i*8];
+	}
+	
+	return out;
+	
+}
+
+inline
+fn switch_values(reg u64 message1 message2){
+	stack u64[24] backup;
+
+	backup = backup_message(message2);
+	
+	copy_message(message2,message1);
+	
+	copy_message_st(message1,backup);
+	
+}
+
+export
+fn dispatch(reg u64 party0In party1In party2In party3In party4In){
+	reg u64 aux;
+	reg u64 share1;
+	reg u64 share2;
+	inline int si;
+	stack u64 party0;
+	stack u64 party1;
+	stack u64 party2;
+	stack u64 party3;
+	stack u64 party4;
+	
+	party0 = party0In;
+	party1 = party1In;
+	party2 = party2In;
+	party3 = party3In;
+	party4 = party4In;
+	
+    //party0[1] <-> party1[0]
+	aux = party0;
+	si = getMessageIndex(1);
+	share1 = aux + si;
+	
+	aux = party1;
+	si = getMessageIndex(0);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+	//party0[2] <-> party2[0]
+	aux = party0;
+	si = getMessageIndex(2);
+	share1 = aux + si;
+	
+	aux = party2;
+	si = getMessageIndex(0);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+	//party0[3] <-> party3[0]
+	aux = party0;
+	si = getMessageIndex(3);
+	share1 = aux + si;
+	
+	aux = party3;
+	si = getMessageIndex(0);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+	//party0[4] <-> party4[0]
+	aux = party0;
+	si = getMessageIndex(4);
+	share1 = aux + si;
+	
+	aux = party4;
+	si = getMessageIndex(0);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+	
+	
+    //party1[2] <-> party2[1]
+	aux = party1;
+	si = getMessageIndex(2);
+	share1 = aux + si;
+	
+	aux = party2;
+	si = getMessageIndex(1);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+    //party1[3] <-> party3[1]
+	aux = party1;
+	si = getMessageIndex(3);
+	share1 = aux + si;
+	
+	aux = party3;
+	si = getMessageIndex(1);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+    //party1[4] <-> party4[1]
+	aux = party1;
+	si = getMessageIndex(4);
+	share1 = aux + si;
+	
+	aux = party4;
+	si = getMessageIndex(1);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+	
+		
+    //party2[3] <-> party3[2]
+	aux = party2;
+	si = getMessageIndex(3);
+	share1 = aux + si;
+	
+	aux = party3;
+	si = getMessageIndex(2);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+		
+    //party2[4] <-> party4[2]
+	aux = party2;
+	si = getMessageIndex(4);
+	share1 = aux + si;
+	
+	aux = party4;
+	si = getMessageIndex(2);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+	
+		
+    //party3[4] <-> party4[3]
+	aux = party3;
+	si = getMessageIndex(4);
+	share1 = aux + si;
+	
+	aux = party4;
+	si = getMessageIndex(3);
+	share2 = aux + si;
+	
+	switch_values(share1,share2);
+	
+}
+
+
+#ifdef MAURER5_TOEC
+
+#ifdef BN_P25519
+
+inline fn toEC(reg u64 a1 a2 a3 a4 a5) {
+  reg u64[4] x1 x2;
+  bn_eq(x1, x2);
+  bn_test0(x1);
+  add5(a1,a2,a3,a4);
+  Smult5(a1,a2,a3,a4);
+  dispatch(a1,a2,a3,a4,a5);
+  input_start5(a1,a2,a3);
+  input_end5(a1,a2,a3);
+  const_start5(a1,a2);
+  const_end5(a1,a2,a3);
+  mult_start5(a1,a2,a3,a4,a5);
+  mult_end5(a1,a2,a3);
+  out_start5(a1,a2,a3);
+  out_end5(a1,a2,a3);
+}
+
+#endif
+// endif: BN_P25519
+
+#endif
+// endif: MAURER5_TOEC
+

@@ -1,0 +1,36 @@
+TOP := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+GFLAGS ?=
+JFLAGS ?=
+JASMINC ?= jasminc
+CLOC ?= cloc
+CLOCFLAGS ?= --force-lang-def=$(TOP)/config/cloc.langdef --exclude-list-file=$(TOP)/config/cloc.exclude
+
+CLOC_CHK := $(shell cloc --version 2>/dev/null)
+
+ifdef CLOC_CHK
+CLOC_CMD = $(CLOC)
+else
+CLOC_CMD = $(error "'cloc' (https://github.com/AlDanial/cloc) needs to be installed!  --  e.g. try 'brew install cloc')
+endif
+
+
+#### RULES
+
+#### RULES
+
+%_export.japp: %.jazz
+	@gpp -D EXPORT_FNS -I. -I$(TOP) $(GFLAGS) -o $@ $<
+
+%_toEC.japp: %.jazz
+	@gpp -D EXPORT_EC -I. -I$(TOP) $(GFLAGS) -o $@ $<
+
+%.s: %_export.japp
+	@$(JASMINC) $(JFLAGS) -o $@ $< || (rm -f $@ && touch fail && echo "\033[1;31m FAIL \033[0m")
+
+%.ec: %_toEC.japp
+	@$(JASMINC) $(JFLAGS) -ec toEC -oec $@ $< || (rm -f $@ && touch fail && echo "\033[1;31m FAIL \033[0m")
+
+.PHONY: _clean
+_clean:
+	@rm -f log fail *.japp *.s *.eco
+	@find . -name "*.eco" -type f -delete
