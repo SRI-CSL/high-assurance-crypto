@@ -6,7 +6,7 @@ This repository contains SRI's public work focusing on computer-aided verificati
 
 ### [Computer-aided Verification and Synthesis of Secure Multiparty Computation (MPC) Protocols](https://github.com/SRI-CSL/high-assurance-crypto/tree/main/high-assurance-mpc)
 
-The project consisted on formally verifying MPC protocols using EasyCrypt, where we formalized standard security notions of MPC and developed an EasyCrypt proof and implementation of the BGW addition and multiplication gates. In addition, other security properties of MPC protocols (such as proactive security) were explored. Finally, we constructed a (preliminary) EasyCrypt code extraction tool, that was used to obtain a verified implementation of the BGW protocol gates.
+The project consisted on formally verifying MPC protocols using EasyCrypt, where we formalized standard security notions of MPC and developed an EasyCrypt proof and implementation of the BGW addition and multiplication gates. In addition, other security properties of MPC protocols (such as proactive security) were explored. Finally, we constructed a (preliminary) EasyCrypt code extraction tool, that was used to obtain a verified implementation of the BGW protocol gates in OCaml.
 
 ### [Machine-checked ZKP for NP-relations: Formally Verified Security Proofs and Implementations of MPC-in-the-Head](https://github.com/SRI-CSL/high-assurance-crypto/tree/main/high-assurance-zk)
 
@@ -23,3 +23,4 @@ The project consisted on the formal verification of the [MPC-in-the-Head](https:
 
 - [EasyCrypt](https://www.easycrypt.info/)
 - [Jasmin](https://github.com/jasmin-lang/jasmin)
+- [OCaml](https://ocaml.org/)
