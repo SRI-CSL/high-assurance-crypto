@@ -1,0 +1,7 @@
+(library
+ (name common)
+ (libraries containers zarith yojson str cryptokit domainslib timer tracing)
+ (preprocess (pps ppx_deriving.std))
+)
+
+(env (dev (flags (:standard -warn-error -A))))

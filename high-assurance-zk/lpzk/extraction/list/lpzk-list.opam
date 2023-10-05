@@ -1,0 +1,25 @@
+opam-version: "2.0"
+name: "lpzk-array"
+synopsis: "lpzk-array"
+description: "lpzk-array"
+maintainer: "FooBar"
+authors: "FooBar"
+depends: [
+  "ocaml" {>= "5.0"}
+  "dune"
+  "ocamlfind"
+  "containers"
+  "zarith"
+  "yojson"
+  "ppx_deriving"
+  "domainslib"
+  "tyre"
+  "timer"   # https://github.com/disteph/timer.git
+  "tracing" # https://github.com/disteph/tracing.git
+]
+build: [
+    "dune" "build"
+]
+remove: [
+  "ocamlfind" "remove" "lpzk"
+]

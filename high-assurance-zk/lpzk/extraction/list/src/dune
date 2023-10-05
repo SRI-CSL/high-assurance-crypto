@@ -1,0 +1,9 @@
+(executable
+ (name lpzk_exec)
+ (libraries containers zarith yojson str domainslib common timer tracing)
+ (preprocess (pps ppx_deriving.std))
+ (modules Lpzk_exec)
+ (promote (until-clean) (into ".."))
+)
+
+(env (dev (flags (:standard -warn-error -A))))
