@@ -10,6 +10,12 @@ In this work, we develop an end-to-end machine-checked implementation of LPZK, t
 
 Our development was derived from a machine-checked security proof of LPZK that was developed in EasyCrypt, an interactive proof-assistant tailored for cryptographic proofs. All the afore mentioned optimization have also been formalized in EasyCrypt, before code was generated from the proof.
 
+## Disclaimer
+
+The reviewer may notice that some modifications to the folder were done January 23, therefore after then January 19 submission deadline. These modifications were done **ONLY** at the implementation level, not at the proof level. Concretely, the implementation version submitted January 19 was the test version, that **did not** use correlated randomness and, therefore, produced incorrect results. This version is faster to just benchmark the performance of the implementation without considering it's correctness. 
+
+We have resubmitted the correct version, that creates correlated version before executing the protocol, thus producing the correct result.
+
 ## Project organization
 
 We separate the different components of our project as follows:
