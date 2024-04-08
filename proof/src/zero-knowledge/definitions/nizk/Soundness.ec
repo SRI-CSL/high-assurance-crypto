@@ -5,7 +5,7 @@ theory Soundness.
   clone import NIZKProtocol.
 
   module type MProver_t = {
-    proc commit(x : statement_t) : commit_t
+    proc commit(x : statement_t) : commitment_t
   }.
 
   module type RandV_t = {

@@ -1,8 +1,8 @@
 .PHONY: default build install uninstall reinstall test clean
 
-default: build
+default: lib
 
-build:
+lib:
 	dune build
 
 test:
@@ -19,3 +19,7 @@ uninstall:
 
 clean:
 	dune clean
+
+check-proof:
+	cd proof && docker build -t ec-check-docker -f Dockerfile . 
+	cd proof && docker run -ti --memory="16g" --cpus="3.0" ec-check-docker

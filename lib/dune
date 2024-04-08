@@ -1,0 +1,7 @@
+(library
+ (name evocrypt)
+ (public_name evocrypt)
+ (modules lpzk evocrypt)
+ (libraries zarith cryptokit domainslib)
+ (flags
+  (:standard -w -26-27-32-33-34-39)))

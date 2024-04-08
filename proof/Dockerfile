@@ -1,13 +1,21 @@
-FROM ubuntu:latest
+FROM ubuntu:22.04
 
-RUN \
-	apt -q -y update && \
-	apt -q -y install build-essential && \
-	apt -q -y install git && \
-	apt -q -y install opam
+RUN apt -y update
+RUN apt -y install build-essential
+RUN apt -y install ca-certificates
+RUN apt -y install git
+RUN apt -y install curl
+RUN apt -y install unzip
+RUN apt -y install bubblewrap
 	
+# OPAM
+RUN echo "insecure" > $HOME/.curlrc
+RUN echo | bash -c "sh <(curl -fsSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh)"
 RUN opam init -y
-RUN opam switch create 5.0.0
+# RUN apt install opam
+
+# RUN opam init -y
+# #RUN opam switch create 5.0.1
 RUN eval $(opam env)
 
 RUN opam pin -yn add easycrypt https://github.com/EasyCrypt/easycrypt.git
@@ -27,20 +35,20 @@ RUN opam install -y z3
 
 WORKDIR home
 RUN git clone https://github.com/EasyCrypt/easycrypt.git
-RUN cd easycrypt # && git checkout 796cc2d1127fac39bebf3e0ed243b47eb761896d
+#RUN cd easycrypt # && git checkout 796cc2d1127fac39bebf3e0ed243b47eb761896d
 RUN eval $(opam env) && cd easycrypt && make && make install
-RUN eval $(opam env) && why3 config detect
+RUN eval $(opam env) && easycrypt why3config
 
 RUN echo 'eval $(opam env)' > /root/.bashrc
 
-COPY /proof /home/proof
-COPY /config /home/config
+RUN mkdir /home/proof
+COPY src /home/proof/src
 
-RUN mkdir ~/.config
-RUN mkdir ~/.config/easycrypt/
-RUN mv /home/config/easycrypt.conf ~/.config/easycrypt/
+COPY config /home/proof/config
 
-COPY Makefile /home
+RUN mv /home/proof/config/easycrypt.conf ~/.config/easycrypt/
 
-ENTRYPOINT /home/easycrypt/scripts/testing/runtest --timeout="60" --jobs="0" config/tests.config lpzk
+# COPY Makefile /home
+
+ENTRYPOINT /home/easycrypt/scripts/testing/runtest --jobs="0" proof/config/tests.config lpzk
 #CMD ["bash"]
