@@ -1,48 +1,21 @@
-LN := ln
-RM := rm
-FIND := find
-MV := mv
-MAKE := make
-WHY3 := why3
+.PHONY: default build install uninstall reinstall test clean
 
-NAME_OPT := -name
-ECO := "*.eco"
-TYPE_OPT := -type f
-DELETE_OPT := -delete
+default: build
 
-LN_OPT := -si
-RM_OPT := -rf
+build:
+	dune build
 
-MAKE_OPT := -C
+test:
+	dune build
+	dune build @runtest
 
-WHY3_OPT := extract --recursive
+install: build
+	dune install
 
-CLEAN := clean
+reinstall: uninstall install
 
-EC_PATH := $(CURDIR)/easycrypt
-ET_PATH := $(CURDIR)/extraction-tool
-PROOF_PATH := $(CURDIR)/proof
-ME_PATH := $(CURDIR)/modular-extraction
+uninstall:
+	dune uninstall
 
-EXTRACT_DIR_OPT := -L extraction-tool
-
-OCAML64_DRIVER := -D ocaml64
-EC_DRIVER := -D $(ET_PATH)/ec_driver.drv
-
-ECWHY3 := ecwhy3.native
-ZKRUN := zkRun.native
-MZKRUN := mzkRun.native
-
-.PHONY: easycrypt clean-easycrypt
-.PHONY: check-proof clean-proof
-.PHONY: extraction-tool clean-extraction-tool
-.PHONY: extract-InTheHead
-.PHONY: extraction-wrapper modular-extraction-wrapper
-
-# --------------------------------------------------------------------
-# Build EasyCrypt
-easycrypt:
-	$(MAKE) $(MAKE_OPT) easycrypt/
-# Clean EasyCrypt
-clean-easycrypt:
-	$(MAKE) $(CLEAN) $(MAKE_OPT) easycrypt/
+clean:
+	dune clean
