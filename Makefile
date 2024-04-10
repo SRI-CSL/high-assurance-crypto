@@ -1,8 +1,8 @@
 .PHONY: default build install uninstall reinstall test clean
 
-default: lib
+default: build
 
-lib:
+build:
 	dune build
 
 test:

@@ -1,16 +1,16 @@
 open Domainslib
 
-let dt' () = Z.rem (Z.of_bits (Cryptokit.Random.string (Cryptokit.Random.pseudo_rng "0000000000000000") 128)) !LPZK.q
-let dt () =
-  let coef = ref Z.zero in
-  let quit = ref false in
-  while not !quit do
-    coef := dt' () ;
-    if not (Z.equal !coef Z.zero) then quit := true
-  done ;
-  !coef
-
 module LPZK = struct
+
+  let dt' () = Z.rem (Z.of_bits (Cryptokit.Random.string (Cryptokit.Random.pseudo_rng "0000000000000000") 128)) !LPZK.q
+  let dt () =
+    let coef = ref Z.zero in
+    let quit = ref false in
+    while not !quit do
+      coef := dt' () ;
+      if not (Z.equal !coef Z.zero) then quit := true
+    done ;
+    !coef
 
   let generate_lpzk_prover_randomness (ngates : int) : prover_rand_t =
     let total_rand = ngates + 2 + 1 in
