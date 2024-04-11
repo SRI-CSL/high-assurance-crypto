@@ -3,4 +3,4 @@
  (modules Test_evocrypt)
  (libraries EVOCrypt)
  (flags
-  (:standard -w -35 -alert)))
+  (:standard -w -35-32 -alert)))

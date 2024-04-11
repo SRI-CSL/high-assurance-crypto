@@ -58,6 +58,44 @@ let _ =
   test "SHA3 commitment test (FALSE)" answer false
 (* =========================================================================== *)
 
+(* =========================================================================== *)
+(** Secret sharing test *)
+open EVOCrypt.SecretSharing.Shamir
+open Zarith.FieldPolynomial
+
+let p1 = Z.of_string "1"
+let p2 = Z.of_string "2"
+let p3 = Z.of_string "3"
+let p4 = Z.of_string "4"
+let p5 = Z.of_string "5"
+
+let pid_mpc_set : Z.t list = Cons (p1, Cons (p2, Cons (p3, Cons (p4, Cons (p5, Nil)))))
+
+module PC5 = struct
+  let n = Z.of_string "5"
+  let t = Z.of_string "2"
+  type pid_t = Z.t
+  let pid_set : pid_t list = pid_mpc_set
+end 
+
+let rec shares_to_string = function
+  | Nil -> ""
+  | Cons(x, Nil) -> let (pid, s) = x in Z.to_string pid ^ " -> " ^ Z.to_string s
+  | Cons(x, xs) -> let (pid, s) = x in Z.to_string pid ^ " -> " ^ Z.to_string s ^ "\n" ^ shares_to_string xs
+
+let _ = 
+  let module Shamir5 = Shamir (PC5) in
+  EcPrimeField.q := Z.of_string "11" ;
+  let p = Cons({ coef = Z.of_string "5" ; expo = Z.of_string "1"}, Cons({ coef = Z.of_string "7"; expo = Z.zero}, Nil)) in
+  let s = Z.of_string "4" in
+  let answer = Shamir5.share p s in
+  test "Shamir test share" answer (Cons((p1, Z.of_string "9"), Cons((p2, Z.of_string "3"), Cons((p3, Z.of_string "8"), Cons((p4, Z.of_string "2"), Cons((p5, Z.of_string "7"), Nil)))))) ;
+  let answer = Shamir5.reconstruct answer in
+  test "Shamir test reconstruct (all shares)" answer s ;
+  let answer = Shamir5.reconstruct (Cons((p1, Z.of_string "9"), Cons((p2, Z.of_string "3"), Cons((p3, Z.of_string "8"), Nil)))) in
+  test "Shamir test reconstruct (subset of shares)" answer s
+(* =========================================================================== *)
+
 (** End of tests *)
 let _ =
   print_newline();

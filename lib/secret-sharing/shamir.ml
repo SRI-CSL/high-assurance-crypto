@@ -9,7 +9,7 @@ module type PartyConfiguration = sig
   val n : Z.t
   val t : Z.t
 
-  type pid_t = t
+  type pid_t = Z.t
   val pid_set : pid_t list
 end
    
