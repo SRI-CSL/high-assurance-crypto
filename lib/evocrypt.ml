@@ -1,5 +1,7 @@
 module ZK = struct
   module LPZK = LPZK
+  module MitH = MitH
+  module ShamirBGWSha3MitH = ShamirBGWSha3MitH
 end
 
 module MPC = struct

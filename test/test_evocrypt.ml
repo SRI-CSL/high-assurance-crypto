@@ -10,11 +10,11 @@ let test test_name answer correct_answer =
   flush stdout;
   flush stderr;
   if answer <> correct_answer then begin
-    eprintf "*** Bad result (%s)\n" test_name;
+    eprintf "*** Bad result (%s)@." test_name;
     flush stderr;
     error_occurred := true
   end else begin
-    printf " %s..." test_name
+    printf " %s...@." test_name
   end
 
 let rec pad_witness' l i ws =
@@ -23,7 +23,9 @@ let rec pad_witness' l i ws =
   
 let pad_witness l ws = pad_witness' l Z.zero ws
 
+(* =========================================================================== *)
 (** Arithmetic circuit tests *)
+
 open EVOCrypt.Circuit.ArithmeticCircuit 
 open ArithmeticGates
 
@@ -42,7 +44,20 @@ let _ =
   let xs = Cons(Z.of_string "3", Cons(Z.of_string "4", Nil)) in
   let answer = ArithmeticCircuit.eval_circuit default_circuit xp (pad_witness (Z.of_string "2") xs) in
   test "Circuit evaluation test" answer (Z.of_string "16")
-  
+(* =========================================================================== *)
+
+(* =========================================================================== *)
+(** Commitment test *)
+open EVOCrypt.Commitment.SHA3Commitment
+
+let _ = 
+  let msg = "The quick brown fox jumps over the lazy dog" in
+  let answer = SHA3Commitment.verify msg (SHA3Commitment.commit () msg) in
+  test "SHA3 commitment test (TRUE)" answer true ;
+  let answer = SHA3Commitment.verify msg (SHA3Commitment.commit () "") in
+  test "SHA3 commitment test (FALSE)" answer false
+(* =========================================================================== *)
+
 (** End of tests *)
 let _ =
   print_newline();
