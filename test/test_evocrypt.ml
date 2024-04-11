@@ -3,6 +3,7 @@ open Format
 open EVOCrypt
 open EcLib
 open EcList
+open EcOption
 
 let error_occurred = ref false
 
@@ -78,13 +79,14 @@ module PC5 = struct
   let pid_set : pid_t list = pid_mpc_set
 end 
 
+module Shamir5 = Shamir (PC5)
+
 let rec shares_to_string = function
   | Nil -> ""
   | Cons(x, Nil) -> let (pid, s) = x in Z.to_string pid ^ " -> " ^ Z.to_string s
   | Cons(x, xs) -> let (pid, s) = x in Z.to_string pid ^ " -> " ^ Z.to_string s ^ "\n" ^ shares_to_string xs
 
 let _ = 
-  let module Shamir5 = Shamir (PC5) in
   EcPrimeField.q := Z.of_string "11" ;
   let p = Cons({ coef = Z.of_string "5" ; expo = Z.of_string "1"}, Cons({ coef = Z.of_string "7"; expo = Z.zero}, Nil)) in
   let s = Z.of_string "4" in
@@ -94,6 +96,57 @@ let _ =
   test "Shamir test reconstruct (all shares)" answer s ;
   let answer = Shamir5.reconstruct (Cons((p1, Z.of_string "9"), Cons((p2, Z.of_string "3"), Cons((p3, Z.of_string "8"), Nil)))) in
   test "Shamir test reconstruct (subset of shares)" answer s
+(* =========================================================================== *)
+
+(* =========================================================================== *)
+(** BGW test *)
+open EVOCrypt.SecretSharing.ASecretSharing
+
+open EVOCrypt.MPC.BGW.BGWAddition
+open EVOCrypt.MPC.BGW.BGWMultiplication
+open EVOCrypt.MPC.BGW.BGWSMultiplication
+open EVOCrypt.MPC.BGW.BGWRefresh
+open EVOCrypt.MPC.BGW.BGWProtocol
+
+module BGW5Add = BGWAdditionGate (PC5)
+module BGW5Mul5 = BGWMultiplicationGate (PC5)
+module BGW5SMul = BGWSMultiplicationGate (PC5)
+module BGW5Refresh = BGWRefreshGate (PC5)
+
+open EVOCrypt.MPC.ArithmeticProtocol
+
+module BGW5Data = ArithmeticProtocolData (ShamirData (PC5)) (BGWAdditionData (PC5)) (BGWMultiplicationData (PC5)) (BGWSMultiplicationData (PC5))
+
+module BGW5 = BGWProtocol(PC5)
+module ListShamir5 = ListSecretSharing((ShamirData (PC5)))
+
+let rec random_generator_gates (g : ArithmeticGates.gates_t) t =
+  match g with
+  | PInput _ -> Nil
+  | SInput _ -> Nil
+  | Constant _ -> Nil
+  | Addition (gid, wl, wr) -> 
+     concat (concat (random_generator_gates wl t) (Cons ((gid, BGW5Data.AdditionRand ()), Nil))) (random_generator_gates wr t)
+  | Multiplication (gid, wl, wr) -> 
+     concat (concat (random_generator_gates wl t) (Cons ((gid, BGW5Data.MultiplicationRand (dpolynomial t)), Nil))) (random_generator_gates wr t)
+  | SMultiplication (gid, wl, wr) -> 
+     concat (concat (random_generator_gates wl t) (Cons ((gid, BGW5Data.SMultiplicationRand ()), Nil))) (random_generator_gates wr t)
+
+let _ = 
+  EcPrimeField.q := Z.of_string "17" ;
+  let xs = Cons(Z.of_string "3", Cons(Z.of_string "4", Nil)) in
+  let xp = Cons(Z.of_string "1", Cons(Z.of_string "2", Nil)) in
+
+  let p = Cons({ coef = Z.of_string "5" ; expo = Z.of_string "1"}, Cons({ coef = Z.of_string "7"; expo = Z.zero}, Nil)) in
+  let r_ss = Cons(p, Cons(p, Nil)) in
+  let ss = ListShamir5.share r_ss xs in
+
+  let x_mpc = map (fun pid -> (pid, (xp, pad_witness (Z.of_string "2") (oget (assoc ss pid))))) PC5.pid_set in
+  let r_mpc = map (fun pid -> (pid, (random_generator_gates default_gates PC5.t, dpolynomial PC5.t))) PC5.pid_set in
+
+  let answer = Shamir5.reconstruct (snd (BGW5.protocol default_circuit r_mpc x_mpc)) in
+
+  test "BGW test" answer (Z.of_string "7") 
 (* =========================================================================== *)
 
 (** End of tests *)

@@ -12,7 +12,13 @@ module MPC = struct
   module SMultiplicationGate = SMultiplicationGate
   module ArithmeticProtocol = ArithmeticProtocol
   module WeakPrivacyComposition = WeakPrivacyComposition
-  module BGW = BGW
+  module BGW = struct
+    module BGWAddition = BGWAddition
+    module BGWMultiplication = BGWMultiplication
+    module BGWSMultiplication = BGWSMultiplication
+    module BGWRefresh = BGWRefresh
+    module BGWProtocol = BGWProtocol
+  end
 end
 
 module Commitment = struct

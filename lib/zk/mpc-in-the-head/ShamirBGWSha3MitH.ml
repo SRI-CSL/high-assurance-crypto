@@ -10,11 +10,11 @@ open CRPRFCommitment
 open MitH
 
 open Shamir
-open BGW
+open BGWProtocol
 
 module SHA3BGWView (PC : PartyConfiguration) = struct 
   
-  open BGW (PC)
+  open BGWProtocol (PC)
 
   type input_t = view_t
   type output_t = string
@@ -29,7 +29,7 @@ end
 
 module BGWBool (PC : PartyConfiguration) = struct
 
-  module BGW = BGW (PC)
+  module BGW = BGWProtocol (PC)
 
   type circuit_t = BGW.circuit_t
 

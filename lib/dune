@@ -11,7 +11,7 @@
           EcCore EcCyclicGroup EcList EcOption EcPrimeField 
           ASecretSharing Shamir
           AGate AMPCProtocol AdditionGate MultiplicationGate SMultiplicationGate ArithmeticProtocol WeakPrivacyComposition
-            BGW BGWAddition BGWMultiplication BGWSMultiplication BGWRefresh BGWWeak
+            BGWProtocol BGWAddition BGWMultiplication BGWSMultiplication BGWRefresh BGWWeak
           AZKProtocol ASigmaProtocol
             MitH ShamirBGWSha3MitH
             LPZK)
