@@ -78,6 +78,15 @@ module ArithmeticGates = struct
     let gg = snd c in
     valid_input_gates np ns gg && valid_smultiplication_gates gg && valid_gids np ns q gg
 
+  let rec eval_gates (g : gates_t) (xp : Z.t list) (xs : Z.t list) : Z.t = 
+    match g with
+    | PInput w -> nth Z.zero xp w
+    | SInput w -> nth Z.zero xs w
+    | Constant (gid, c) -> c
+    | Addition (gid, wl, wr) -> Z.add (eval_gates wl xp xs) (eval_gates wl xp xs)
+    | Multiplication (gid, wl, wr) -> Z.mul (eval_gates wl xp xs) (eval_gates wl xp xs)
+    | SMultiplication (gid, wl, wr) -> Z.mul (eval_gates wl xp xs) (eval_gates wl xp xs)
+
 end
 
 module ArithmeticCircuit = Circuit (ArithmeticDomain) (ArithmeticGates)

@@ -1,0 +1,6 @@
+(test
+ (name test_evocrypt)
+ (modules Test_evocrypt)
+ (libraries EVOCrypt)
+ (flags
+  (:standard -w -35 -alert)))

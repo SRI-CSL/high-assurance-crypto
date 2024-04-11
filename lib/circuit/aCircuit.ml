@@ -15,6 +15,8 @@ module type Gates = sig
 
   val valid_gates : (Z.t * Z.t * Z.t * Z.t) * gates_t -> bool
 
+  val eval_gates : gates_t -> Z.t list -> Z.t list -> Z.t
+
 end
 
 module Circuit (Dom : Domain) (G : Gates) = struct
@@ -37,5 +39,9 @@ module Circuit (Dom : Domain) (G : Gates) = struct
     let (np,ns,m,q) = fst c in
     let cc = snd c in
     valid_topology (np,ns,m,q) && G.valid_gates ((np,ns,m,q), cc)
+
+  let eval_circuit (c : circuit_t) (xp : Z.t list) (xs : Z.t list) : Z.t = 
+    if valid_circuit c then G.eval_gates (snd c) xp xs
+    else Z.of_string "-1"
 
 end
