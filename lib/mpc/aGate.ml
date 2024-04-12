@@ -41,7 +41,8 @@ module type GateData = sig
   val gate : rands_t -> inputs_t -> traces_t * outputs_t
 
   val rand_to_string : rand_t -> string
-  val msgs_to_string : in_messages_t -> string
+  val msgs_to_string : msgs_t -> string
+  val in_msgs_to_string : in_messages_t -> string
   val view_to_string : view_t -> string
 
 end
@@ -88,6 +89,7 @@ module Gate (GD : GateData) = struct
 
   let rand_to_string = GD.rand_to_string
   let msgs_to_string = GD.msgs_to_string
+  let in_msgs_to_string = GD.in_msgs_to_string
   let view_to_string = GD.view_to_string
                
 end

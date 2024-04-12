@@ -86,6 +86,6 @@ module MPCInTheHeadZKData = struct
   let relation (w : witness_t) (x : instance_t) : bool = true
 end
 
-module ShamirBGWSha3MPCInTheHeadData (PC : PartyConfiguration) = MPCInTheHeadSigmaProtocolData (MPCInTheHeadZKData) (ListSecretSharing (Shamir (PC))) (BGWBool (PC)) (CRPRFCommitment (SHA3BGWView (PC)))
+module ShamirBGWSha3MitHData (PC : PartyConfiguration) = MPCInTheHeadSigmaProtocolData (MPCInTheHeadZKData) (ListSecretSharing (Shamir (PC))) (BGWBool (PC)) (CRPRFCommitment (SHA3BGWView (PC)))
                        
-module ShamirBGWSha3MPCInTheHead (PC : PartyConfiguration) = MPCInTheHead (MPCInTheHeadZKData) (ListSecretSharing (Shamir (PC))) (BGWBool (PC)) (CRPRFCommitment (SHA3BGWView (PC)))
+module ShamirBGWSha3MitH (PC : PartyConfiguration) = MPCInTheHead (MPCInTheHeadZKData) (ListSecretSharing (Shamir (PC))) (BGWBool (PC)) (CRPRFCommitment (SHA3BGWView (PC)))

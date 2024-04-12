@@ -66,7 +66,8 @@ module BGWAdditionData (PC : PartyConfiguration) = struct
 
   let rand_to_string (r : rand_t) : string = ""
 
-  let msgs_to_string (im : in_messages_t) : string = ""
+  let in_msgs_to_string (im : in_messages_t) : string = ""
+  let msgs_to_string (im : msgs_t) : string = ""
   let trace_to_string (tr : trace_t) : string = ""
 
   let view_to_string (v : view_t) : string =

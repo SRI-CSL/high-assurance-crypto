@@ -2,6 +2,8 @@ open Domainslib
 
 module LPZK = struct
 
+  open LPZK
+
   let dt' () = Z.rem (Z.of_bits (Cryptokit.Random.string (Cryptokit.Random.pseudo_rng "0000000000000000") 128)) !LPZK.q
   let dt () =
     let coef = ref Z.zero in
@@ -12,7 +14,7 @@ module LPZK = struct
     done ;
     !coef
 
-  let generate_lpzk_prover_randomness (ngates : int) : prover_rand_t =
+  let generate_lpzk_prover_randomness (ngates : int) : LPZK.prover_rand_t =
     let total_rand = ngates + 2 + 1 in
     let rp = Array.make total_rand LPZK.def_ui in
     let generate_random_ui () = { a = dt () ; b = dt () } in
@@ -22,7 +24,7 @@ module LPZK = struct
     done;
     rp
 
-  let generate_lpzk_verifier_randomness (ngates : int) : verifier_rand_t =
+  let generate_lpzk_verifier_randomness (ngates : int) : LPZK.verifier_rand_t =
     let total_rand = ngates + 2 + 1 in
     let y = Array.make total_rand def_yi in
     let alpha = Z.rem (Z.of_bits (Cryptokit.Random.string Cryptokit.Random.secure_rng 128)) !LPZK.q in
@@ -34,7 +36,7 @@ module LPZK = struct
     done;
     { alpha = alpha ; y = y }
 
-  let parallel_generate_lpzk_prover_randomness pool (ngates : int) : prover_rand_t =
+  let parallel_generate_lpzk_prover_randomness pool (ngates : int) : LPZK.prover_rand_t =
     let total_rand = ngates + 2 + 1 in
     let rp = Array.make total_rand LPZK.def_ui in
     let generate_random_ui () = { a = dt () ; b = dt () } in
@@ -44,7 +46,7 @@ module LPZK = struct
     );
     rp
 
-  let parallel_generate_lpzk_verifier_randomness pool (ngates : int) : verifier_rand_t =
+  let parallel_generate_lpzk_verifier_randomness pool (ngates : int) : LPZK.verifier_rand_t =
     let total_rand = ngates + 2 + 1 in
     let y = Array.make total_rand def_yi in
     let alpha = Z.rem (Z.of_bits (Cryptokit.Random.string Cryptokit.Random.secure_rng 128)) !LPZK.q in

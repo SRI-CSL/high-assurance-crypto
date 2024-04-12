@@ -14,7 +14,8 @@
             BGWProtocol BGWAddition BGWMultiplication BGWSMultiplication BGWRefresh BGWWeak
           AZKProtocol ASigmaProtocol
             MitH ShamirBGWSha3MitH
-            LPZK)
+            LPZK
+          Random)
  (libraries zarith cryptokit domainslib)
  (flags
   (:standard -w -26-27-32-33-34-39)))

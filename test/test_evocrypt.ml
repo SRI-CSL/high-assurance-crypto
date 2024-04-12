@@ -5,6 +5,8 @@ open EcLib
 open EcList
 open EcOption
 
+open Zarith.FieldPolynomial
+
 let error_occurred = ref false
 
 let test test_name answer correct_answer =
@@ -23,6 +25,8 @@ let rec pad_witness' l i ws =
   else pad_witness' l (Z.add i Z.one) (concat (Cons (EcOption.witness, Nil)) ws)
   
 let pad_witness l ws = pad_witness' l Z.zero ws
+
+let p = Cons({ coef = Z.of_string "5" ; expo = Z.of_string "2"}, Cons({ coef = Z.of_string "7"; expo = Z.of_string "1"}, Cons({ coef = Z.of_string "3"; expo = Z.of_string "0"}, Nil)))
 
 (* =========================================================================== *)
 (** Arithmetic circuit tests *)
@@ -62,7 +66,6 @@ let _ =
 (* =========================================================================== *)
 (** Secret sharing test *)
 open EVOCrypt.SecretSharing.Shamir
-open Zarith.FieldPolynomial
 
 let p1 = Z.of_string "1"
 let p2 = Z.of_string "2"
@@ -145,8 +148,79 @@ let _ =
   let r_mpc = map (fun pid -> (pid, (random_generator_gates default_gates PC5.t, dpolynomial PC5.t))) PC5.pid_set in
 
   let answer = Shamir5.reconstruct (snd (BGW5.protocol default_circuit r_mpc x_mpc)) in
-
   test "BGW test" answer (Z.of_string "7") 
+(* =========================================================================== *)
+
+(* =========================================================================== *)
+(** BGW-MITH test *)
+open ZK.ShamirBGWSha3MitH
+
+module ShamirBGW5Sha3MitH = ShamirBGWSha3MitHData (PC5)
+
+let rec share_random_generator i n =
+  if Z.equal i n then Nil
+  else
+    let r = dpolynomial PC5.t in
+    Cons (r, share_random_generator (Z.add i Z.one) n)
+
+let _ = 
+  EcPrimeField.q := Z.of_string "17" ;
+  let witness = Cons(Z.of_string "3", Cons(Z.of_string "4", Nil)) in
+  let instance = Cons(Z.of_string "1", Cons(Z.of_string "0", Nil)) in
+  let witness = pad_witness (Z.of_string "2") witness in
+
+  let r_ss = share_random_generator (Z.zero) (Z.of_string "2") in
+  let r_mpc = map (fun pid -> (pid, (random_generator_gates default_gates PC5.t, dpolynomial PC5.t))) PC5.pid_set in
+  let r_cs = map (fun pid -> (pid, ())) PC5.pid_set in
+
+  let module RELC = struct let relc = default_circuit end in
+  let module ShamirBGW5Sha3MitH = ShamirBGW5Sha3MitH (RELC) in
+
+  let (ps, cs) = ShamirBGW5Sha3MitH.commitment (r_ss, r_mpc, r_cs) (witness, instance) in
+  let (vs, chl) = ShamirBGW5Sha3MitH.challenge (p1, p2) instance cs in
+  let resp = ShamirBGW5Sha3MitH.response ps chl in
+  let answer = ShamirBGW5Sha3MitH.check vs resp in
+  test "BGW-MITH test" answer true
+
+(* =========================================================================== *)
+
+(* =========================================================================== *)
+(** LPZK test *)
+open ZK
+open ZK.LPZK
+
+let default_gates : LPZK.gates_t = Multiplication (Z.of_string "8", 
+                                    Addition (Z.of_string "7",
+                                      Addition (Z.of_string "6", PInput (Z.of_string "0"), SInput (Z.of_string "2")),
+                                      Multiplication (Z.of_string "5", 
+                                        Constant (Z.of_string "4", Z.of_string "2"),
+                                        SInput (Z.of_string "3"))),
+                                    PInput (Z.of_string "1"))
+let default_topology = { npinputs = Z.of_string "2" ; nsinputs = Z.of_string "2" ; noutputs = Z.of_string "1" ; ngates = Z.of_string "5" }
+let default_circuit = (default_topology, default_gates)
+
+let pad_witness l ws = 
+  let pad = Array.make l Z.zero in
+  Array.append pad ws
+
+let _ = 
+  LPZK.q := Z.of_string "17" ;
+  let witness = Array.make 2 (Z.of_string "3") in
+  witness.(1) <- Z.of_string "4" ;
+  let witness = pad_witness 2 witness in
+
+  let instance = Array.make 2 (Z.of_string "1") in
+  instance.(1) <- Z.of_string "0" ;
+
+  let statement = (default_circuit, instance) in
+
+  let prover_rand = EVOCrypt.Random.LPZK.generate_lpzk_prover_randomness 7 in
+  let verifier_rand = EVOCrypt.Random.LPZK.generate_lpzk_verifier_randomness 7 in
+
+  let c = LPZK.commit prover_rand (witness, statement) in
+  let answer = LPZK.prove verifier_rand statement c in
+  test "LPZK test" answer true
+  
 (* =========================================================================== *)
 
 (** End of tests *)

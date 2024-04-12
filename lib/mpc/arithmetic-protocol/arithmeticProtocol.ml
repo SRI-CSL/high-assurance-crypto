@@ -15,7 +15,7 @@ open SMultiplicationGate
 open ASecretSharing
    
 module ArithmeticProtocolData
-         (SSD : sig include SecretSharingSchemeData with type secret_t = t and type share_t = t end)
+         (SSD : sig include SecretSharingSchemeData with type secret_t = t and type share_t = t and type pid_t = Z.t end)
          (AGED : sig include AdditionGateEvalData with type pid_t = SSD.pid_t and
                                                        type pinput_t = unit and
                                                        type sinput_t = SSD.share_t and
@@ -704,9 +704,17 @@ module ArithmeticProtocolData
     | PInputLT c -> Z.to_string c
     | SInputLT w -> ""
     | ConstantLT (gid, c) -> Z.to_string c
-    | AdditionLT (gid, m, wl, wr) -> AGED.msgs_to_string m ^ gate_local_trace_to_string wl ^ gate_local_trace_to_string wr
-    | MultiplicationLT (gid, m, wl, wr) -> MGED.msgs_to_string m ^ gate_local_trace_to_string wl ^ gate_local_trace_to_string wr
-    | SMultiplicationLT (gid, m, wl, wr) -> SMGED.msgs_to_string m ^ gate_local_trace_to_string wl ^ gate_local_trace_to_string wr
+    | AdditionLT (gid, m, wl, wr) -> AGED.in_msgs_to_string m ^ gate_local_trace_to_string wl ^ gate_local_trace_to_string wr
+    | MultiplicationLT (gid, m, wl, wr) -> MGED.in_msgs_to_string m ^ gate_local_trace_to_string wl ^ gate_local_trace_to_string wr
+    | SMultiplicationLT (gid, m, wl, wr) -> SMGED.in_msgs_to_string m ^ gate_local_trace_to_string wl ^ gate_local_trace_to_string wr
+
+  let rec gate_local_messages_to_string = function
+    | PInputLM c -> "PInputLM: " ^ Z.to_string c ^ " || "
+    | SInputLM w -> "SInputLM || "
+    | ConstantLM (gid, c) -> "ConstantLM: " ^ Z.to_string c ^ " || "
+    | AdditionLM (gid, m, wl, wr) -> "AdditionLM: " ^ AGED.msgs_to_string m ^ " || " ^ gate_local_messages_to_string wl ^ gate_local_messages_to_string wr
+    | MultiplicationLM (gid, m, wl, wr) -> "MultiplicationLM: " ^ MGED.msgs_to_string m ^ " || " ^  gate_local_messages_to_string wl ^ gate_local_messages_to_string wr
+    | SMultiplicationLM (gid, m, wl, wr) -> "SMultiplicationLM: " ^ SMGED.msgs_to_string m ^ " || " ^ gate_local_messages_to_string wl ^ gate_local_messages_to_string wr
 
   let rec gate_local_traces_to_string = function
     | Nil -> ""
@@ -736,16 +744,20 @@ module ArithmeticProtocolData
     let (xi, ri, ti) = vi in
     let (xj, rj, tj) = vj in
     let outj = out_messages c j vj in
-    
+    let outi = out_messages c i vi in
+
     valid_rand c ri && valid_rand c rj &&
     fst xi = xp && fst xj = xp && valid_circuit_trace c (snd ti) && valid_circuit_trace c (snd tj) &&
+    get_messages_from i (snd tj) = get_messages_to i (out_messages c j vj)
+(*
+
     get_messages_from j (snd ti) = get_messages_to i (out_messages c j vj) &&
-    get_messages_from i (snd tj) = get_messages_to j (out_messages c i vi)
+    get_messages_from i (snd tj) = get_messages_to j (out_messages c i vi)*)
 
 end
 
 module ArithmeticProtocol
-         (SSD : sig include SecretSharingSchemeData with type secret_t = t and type share_t = t end)
+         (SSD : sig include SecretSharingSchemeData with type secret_t = t and type share_t = t and type pid_t = Z.t end)
          (AGED : sig include AdditionGateEvalData with type pid_t = SSD.pid_t and
                                                        type pinput_t = unit and
                                                        type sinput_t = SSD.share_t and

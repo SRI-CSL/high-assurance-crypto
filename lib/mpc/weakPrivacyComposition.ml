@@ -13,7 +13,7 @@ open MultiplicationGate
 open SMultiplicationGate
    
 module WeakPrivacyComposition
-         (SSD : sig include SecretSharingSchemeData with type secret_t = t and type share_t = t end)
+         (SSD : sig include SecretSharingSchemeData with type secret_t = t and type share_t = t and type pid_t = Z.t end)
          (AGED : sig include AdditionGateEvalData with type pid_t = SSD.pid_t and
                                                        type pinput_t = unit and
                                                        type sinput_t = SSD.share_t and
@@ -113,7 +113,7 @@ module WeakPrivacyComposition
   let trace_to_string tr =
     let (ys, ims) = tr in
     let (imswp, imssp) = ims in
-    ArithP.trace_to_string (ys, imswp) ^ SG.msgs_to_string imssp
+    ArithP.trace_to_string (ys, imswp) ^ SG.in_msgs_to_string imssp
 
   let view_to_string v =
     let (x,r,t) = v in
@@ -128,7 +128,7 @@ module WeakPrivacyComposition
 end
 
 module WeakPrivate
-         (SSD : sig include SecretSharingSchemeData with type secret_t = t and type share_t = t end)
+         (SSD : sig include SecretSharingSchemeData with type secret_t = t and type share_t = t and type pid_t = Z.t end)
          (AGED : sig include AdditionGateEvalData with type pid_t = SSD.pid_t and
                                                        type pinput_t = unit and
                                                        type sinput_t = SSD.share_t and

@@ -67,7 +67,8 @@ module BGWSMultiplicationData (PC : PartyConfiguration) = struct
 
   let trace_to_string (tr : trace_t) : string = ""
 
-  let msgs_to_string (im : in_messages_t) : string = ""
+  let in_msgs_to_string (im : in_messages_t) : string = ""
+  let msgs_to_string (m : msgs_t) : string = ""
 
   let view_to_string (v : view_t) : string =
     let (x, r, tr) = v in

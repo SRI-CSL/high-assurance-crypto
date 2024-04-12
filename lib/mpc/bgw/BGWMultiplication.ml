@@ -59,6 +59,17 @@ module BGWMultiplicationData (PC : PartyConfiguration) = struct
   let local_output_share (pid : pid_t) (x : input_t) (r : rand_t) (ims : (pid_t * msgs_t) list) : poutput_t =
     party_exec2 ims
 
+  let rec in_msgs_to_string (im : in_messages_t) : string =
+    match im with
+    | Nil -> ""
+    | Cons(im', Nil) -> Z.to_string (fst im') ^ ": " ^ Z.to_string (snd im')
+    | Cons (im', ims) -> Z.to_string (fst im') ^ ": " ^ Z.to_string (snd im') ^ " || " ^ in_msgs_to_string ims
+
+  let rec out_msgs_to_string = function
+    | Nil -> ""
+    | Cons(x, Nil) -> let (pid_o, ms) = x in Z.to_string pid_o ^ " -> (" ^ in_msgs_to_string ms ^ ")"
+    | Cons(x, xs) -> let (pid_o, ms) = x in Z.to_string pid_o ^ " -> (" ^ in_msgs_to_string ms ^ ")\n" ^ out_msgs_to_string xs
+
   let eval (rs : rands_t) (xs : inputs_t) : (pid_t * ((pid_t * msgs_t) list)) list * poutputs_t =
     let p1s = map (fun pid -> (pid, party_exec1 (oget (assoc rs pid)) (oget (assoc xs pid)))) pid_set in
     let ms = map (fun pid -> (pid, map (fun ms -> let (sender, m) = ms in (sender, get_messages_to pid m)) p1s)) pid_set in 
@@ -73,11 +84,10 @@ module BGWMultiplicationData (PC : PartyConfiguration) = struct
 
   let rand_to_string (r : rand_t) : string = ""
 
-  let rec msgs_to_string (im : in_messages_t) : string =
-    match im with
-    | Nil -> ""
-    | Cons (im', ims) -> Z.to_string (snd im') ^ msgs_to_string ims
-                                           
+
+                               
+  let msgs_to_string (m : msgs_t) : string = Z.to_string m
+
   let trace_to_string (tr : trace_t) : string = ""
 
   let view_to_string (v : view_t) : string =

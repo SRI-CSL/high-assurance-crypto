@@ -75,11 +75,14 @@ module BGWRefreshGateData (PC : PartyConfiguration) = struct
 
   let rand_to_string (r : rand_t) : string = ""
 
-  let rec msgs_to_string (im : in_messages_t) : string =
+  let rec in_msgs_to_string (im : in_messages_t) : string =
     match im with
     | Nil -> ""
-    | Cons (im', ims) -> Z.to_string (snd im') ^ msgs_to_string ims
-                       
+    | Cons(im', Nil) -> Z.to_string (fst im') ^ " -> " ^ Z.to_string (snd im')
+    | Cons (im', ims) -> Z.to_string (fst im') ^ " -> " ^ Z.to_string (snd im') ^ " || " ^ in_msgs_to_string ims
+
+  let msgs_to_string (m : msgs_t) : string = Z.to_string m
+    
   let trace_to_string (tr : trace_t) : string = ""
 
   let view_to_string (v : view_t) : string =

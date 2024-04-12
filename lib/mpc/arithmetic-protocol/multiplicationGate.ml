@@ -40,7 +40,8 @@ module type MultiplicationGateEvalData = sig
   val eval : rands_t -> inputs_t -> (pid_t * ((pid_t * msgs_t) list)) list * poutputs_t
 
   val rand_to_string : rand_t -> string
-  val msgs_to_string : in_messages_t -> string
+  val msgs_to_string : msgs_t -> string
+  val in_msgs_to_string : in_messages_t -> string
   val view_to_string : view_t -> string
 
 end
@@ -104,6 +105,7 @@ module MultiplicationGateData
 
   let rand_to_string = AGED.rand_to_string
   let msgs_to_string = AGED.msgs_to_string
+  let in_msgs_to_string = AGED.in_msgs_to_string
   let view_to_string = AGED.view_to_string
                      
 end

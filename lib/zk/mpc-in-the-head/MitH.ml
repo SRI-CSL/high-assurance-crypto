@@ -118,7 +118,7 @@ module MPCInTheHeadSigmaProtocolData
     
     let ci = get_party_commitment i cs in
     let cj = get_party_commitment j cs in
-    
+
     CS.verify vi (ci,osi) && CS.verify vj (cj,osj) &&
               MPC.consistent_views relc xv vi vj i j &&
                 MPC.local_output relc i vi && MPC.local_output relc j vj
