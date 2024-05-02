@@ -93,7 +93,7 @@ theory LPZKFaster.
   type f_t = LPZK.f_t.
 
   (** We define a *bad* [f] value to cover the case where the message integrity check fails *)
-  op bad : f_t = PInputF ({| e = fzero ; e' = fzero ; e'' = fzero |}).
+  op bad : f_t = PInputF ({| e = fzero |}).
 
   (** Improved [gen_f] operator, that performs a single circuit iteration computing [f] and
       attesting the circuit integrity at the same time. It will output a pair [bool * f_t] where
@@ -109,7 +109,7 @@ theory LPZKFaster.
         if as_pinput gg = wid then
           let m = zi.`m in
           let v = (nth def_yi r.`y wid).`v in
-          (true, PInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
+          (true, PInputF {| e = fadd v m |})
         else (false, bad)
       else (false, bad)
 
@@ -118,7 +118,7 @@ theory LPZKFaster.
         if as_sinput gg = wid then
           let m = zi.`m in
           let v = (nth def_yi r.`y wid).`v in
-          (true, SInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
+          (true, SInputF {| e = fadd v m |})
         else (false, bad)
       else (false, bad)
 
@@ -127,7 +127,7 @@ theory LPZKFaster.
         if (as_constant gg).`1 = gid then
           let m = zi.`m in
           let v = (nth def_yi r.`y gid).`v in
-          (true, ConstantF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
+          (true, ConstantF {| e = fadd v m |})
         else (false, bad)
       else (false, bad)
 
@@ -139,7 +139,7 @@ theory LPZKFaster.
           let (bl, fl) = gen_f r wl zl in
           let (br, fr) = gen_f r wr zr in
           if (bl /\ br) then
-            (true, AdditionF {| e = fadd (get_e fl) (get_e fr) ; e' = fzero ; e'' = fzero |} fl fr)
+            (true, AdditionF {| e = fadd (get_e fl) (get_e fr) |} fl fr)
           else (false, bad)
         else (false, bad)
       else (false, bad)
@@ -152,22 +152,19 @@ theory LPZKFaster.
           let (bl, fl) = gen_f r wl zl in
           let (br, fr) = gen_f r wr zr in
 
-          let m = zi.`m in let m' = zi.`m' in
+          let m = zi.`m in
 
           let alpha = r.`alpha in
           let y = nth def_yi r.`y gid in
-          let v = y.`v in let v' = y.`v' in
+          let v = y.`v in
 
           let el = get_e fl in
           let er = get_e fr in
   
           let e = fadd v m in
-          let e' = fadd v' (fmul alpha m') in
 
           if (bl /\ br) then
-            (true, MultiplicationF {| e = e ; 
-                             e' = e' ; 
-                             e'' = fsub (fsub (fmul el er) e) (fmul alpha e') |} fl fr)
+            (true, MultiplicationF {| e = e |} fl fr)
           else (false, bad)
         else (false, bad)
       else (false, bad).
@@ -403,7 +400,7 @@ theory LPZKFaster.
             smt().
           wp; skip; progress.
             smt().
-      seq 11 11 : (#pre /\ ={rp} /\ rp{2} = rp0{2}).
+      seq 7 7 : (#pre /\ ={rp} /\ rp{2} = rp0{2}).
         wp. do rnd. wp. do rnd. skip; progress.
       (if; first by smt()); last first.
         by rnd.

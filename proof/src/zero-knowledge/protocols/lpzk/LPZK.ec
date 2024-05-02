@@ -95,9 +95,9 @@ theory LPZK.
 
   (** Prover randomness specification *)
   (** The prover will have a list composed of four field elements (a, b, a' and b') per gate *)
-  type ui_t = { a : t ; b : t ; a' : t ; b' : t }.
+  type ui_t = { a : t ; b : t }.
   (** Default value for an element of the prover randomness *)
-  op def_ui : ui_t = {| a = fzero ; b = fzero ; a' = fzero ; b' = fzero |}.
+  op def_ui : ui_t = {| a = fzero ; b = fzero |}.
   (** The type of lists of elements of type [ui_t] *)
   type u_t = ui_t list.
   (** The prover randomness is a list of elements of type [ui_t] *)
@@ -116,9 +116,9 @@ theory LPZK.
 
   (** Verifier randomness specification *)
   (** The verifier will have a list composed of two field elements (v and v') per gate *)
-  type yi_t = { v : t ; v' : t }.
+  type yi_t = { v : t }.
   (** Default value for an element of the verifier randomness *)
-  op def_yi : yi_t = {| v = fzero ; v' = fzero |}.
+  op def_yi : yi_t = {| v = fzero |}.
   (** The type of lists of elements of type [yi_t] *)
   type y_t = yi_t list.
   (** The verifier randomness is a finite field element and a list of elements of type [yi_t] *)
@@ -135,8 +135,7 @@ theory LPZK.
     let alpha = rv.`alpha in let y = rv.`y in
     size y = size rp /\
     forall k, 0 <= k < size y => 
-      (nth def_yi y k).`v = fadd (fmul alpha (nth def_ui rp k).`a) (nth def_ui rp k).`b /\
-      (nth def_yi y k).`v' = fadd (fmul alpha (nth def_ui rp k).`a') (nth def_ui rp k).`b'.
+      (nth def_yi y k).`v = fadd (fmul alpha (nth def_ui rp k).`a) (nth def_ui rp k).`b.
 
   (** Prover output type. At the end of the protocol, the prover has no output *)
   type prover_output_t = unit. 
@@ -146,7 +145,7 @@ theory LPZK.
 
   (** Commitment type for individual gates. For each circuit gate, the prover commits values 
       [m], [m'] and [c], captured by the [zi_t] record type *)
-  type zi_t = { m : t ; m' :  t ; c : t }.
+  type zi_t = { m : t }.
 
   (** We model the commitment message as a tree, following the same format used for the 
       definition of arithmetic circuits *)
@@ -163,20 +162,20 @@ theory LPZK.
     with gg = PInput wid => 
       let b = (nth def_ui u wid).`b in
       let w = eval_gates gg xp xs in
-      PInputZ wid {| m = fsub w b ; m' = fzero ; c = fzero |}
+      PInputZ wid {| m = fsub w b |}
 
     with gg = SInput wid => 
       let b = (nth def_ui u wid).`b in
       let w = eval_gates gg xp xs in
-      SInputZ wid {| m = fsub w b ; m' = fzero ; c = fzero |}
+      SInputZ wid {| m = fsub w b |}
 
     with gg = Constant gid c => 
       let b = (nth def_ui u gid).`b in
       let w = eval_gates gg xp xs in
-      ConstantZ gid {| m = fsub w b ; m' = fzero ; c = fzero |}
+      ConstantZ gid {| m = fsub w b |}
 
     with gg = Addition gid wl wr =>
-      AdditionZ gid {| m = fzero ; m' = fzero ; c = fzero |} (gen_z u wl xp xs) (gen_z u wr xp xs)
+      AdditionZ gid {| m = fzero |} (gen_z u wl xp xs) (gen_z u wr xp xs)
 
     with gg = Multiplication gid l r => 
       let wl = eval_gates l xp xs in
@@ -184,18 +183,16 @@ theory LPZK.
       let w = fmul wl wr in
 
       let ui = nth def_ui u gid in
-      let ai = ui.`a in let ai' = ui.`a' in
-      let bi = ui.`b in let bi' = ui.`b' in
+      let ai = ui.`a in
+      let bi = ui.`b in
 
       let ul = nth def_ui u (get_gid l) in
-      let al = ul.`a in let al' = ui.`a' in
+      let al = ul.`a in
 
       let ur = nth def_ui u (get_gid r) in
-      let ar = ur.`a in let ar' = ur.`a' in
+      let ar = ur.`a in
 
-      MultiplicationZ gid {| m = fsub w bi ; 
-                             m' = fsub (fmul al ar) ai' ; 
-                             c = fsub (fsub (fadd (fmul al wr) (fmul ar wl)) ai) bi' |}
+      MultiplicationZ gid {| m = fsub w bi |}
                           (gen_z u l xp xs) (gen_z u r xp xs).
 
   (** Gets the random [a] value from the prover randomness, i.e., gets the [a] random value
@@ -231,7 +228,7 @@ theory LPZK.
 
   (** Verifier data type for individual gates. For each circuit gate, the verifier will produce 
       values [e], [e'] and [e''], captured by the [fi_t] record type *)
-  type fi_t = { e : t ; e' : t ; e'' : t }.
+  type fi_t = { e : t }.
 
   (** We model the [f] data type as a tree, following the same format used for the 
       definition of arithmetic circuits *)
@@ -259,43 +256,40 @@ theory LPZK.
     with z = PInputZ wid zi => 
       let m = zi.`m in
       let v = (nth def_yi r.`y wid).`v in
-      PInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |}
+      PInputF {| e = fadd v m |}
 
     with z = SInputZ wid zi => 
       let m = zi.`m in
       let v = (nth def_yi r.`y wid).`v in
-      SInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |}
+      SInputF {| e = fadd v m |}
 
     with z = ConstantZ gid zi =>
       let m = zi.`m in
       let v = (nth def_yi r.`y gid).`v in
-      ConstantF {| e = fadd v m ; e' = fzero ; e'' = fzero |}
+      ConstantF {| e = fadd v m |}
 
     with z = AdditionZ gid zi zl zr =>
       let fl = gen_f r zl in
       let fr = gen_f r zr in
 
-      AdditionF {| e = fadd (get_e fl) (get_e fr) ; e' = fzero ; e'' = fzero |} fl fr
+      AdditionF {| e = fadd (get_e fl) (get_e fr) |} fl fr
 
     with z = MultiplicationZ gid zi zl zr =>
       let fl = gen_f r zl in
       let fr = gen_f r zr in
 
-      let m = zi.`m in let m' = zi.`m' in
+      let m = zi.`m in
 
       let alpha = r.`alpha in
       let y = nth def_yi r.`y gid in
-      let v = y.`v in let v' = y.`v' in
+      let v = y.`v in
 
       let el = get_e fl in
       let er = get_e fr in
 
       let e = fadd v m in
-      let e' = fadd v' (fmul alpha m') in
       
-      MultiplicationF {| e = e ; 
-                         e' = e' ; 
-                         e'' = fsub (fsub (fmul el er) e) (fmul alpha e') |} fl fr.
+      MultiplicationF {| e = e |} fl fr.
 
   (** Checks that the commitment message received was produce for a specific circuit. Essentially,
       it will check that for each gate in the circuit, there a counterpart in the commitment
@@ -405,7 +399,7 @@ theory LPZK.
     move : (H14 (max_wire + 1)); have ->: 0 <= max_wire + 1 && max_wire + 1 < size rv.`y by smt().
     progress; rewrite !H6.
     case (nth fzero inst wid = fzero); progress.
-      rewrite H16 mulf0.
+      rewrite H15 mulf0.
       have ->: fadd (fadd (fmul rv.`alpha (nth def_ui rp (max_wire + 1)).`a) (nth def_ui rp (max_wire + 1)).`b) (fsub fzero (nth def_ui rp (max_wire + 1)).`b) = fmul (nth def_ui rp (max_wire + 1)).`a rv.`alpha by ringeq.
       by smt(@PrimeField).
       rewrite mul1f.
@@ -418,7 +412,7 @@ theory LPZK.
     move : (H14 (max_wire + 1)); have ->: 0 <= max_wire + 1 && max_wire + 1 < size rv.`y by smt().
     progress; rewrite !H6.
     case (nth fzero w wid = fzero); progress.
-      rewrite H16 mulf0.
+      rewrite H15 mulf0.
       have ->: fadd (fadd (fmul rv.`alpha (nth def_ui rp (max_wire + 1)).`a) (nth def_ui rp (max_wire + 1)).`b) (fsub fzero (nth def_ui rp (max_wire + 1)).`b) = fmul (nth def_ui rp (max_wire + 1)).`a rv.`alpha by ringeq.
       by smt(@PrimeField).
       rewrite mul1f.
@@ -447,7 +441,7 @@ theory LPZK.
     move : (H14 (max_wire + 1)); have ->: 0 <= max_wire + 1 && max_wire + 1 < size rv.`y by smt().
     progress; rewrite !H28.
     case (fadd (eval_gates l inst w) (eval_gates r inst w) = fzero); progress.
-      rewrite H30 mulf0.
+      rewrite H29 mulf0.
       have ->: fadd (fadd (fmul rv.`alpha (nth def_ui rp (max_wire + 1)).`a) (nth def_ui rp (max_wire + 1)).`b) (fsub fzero (nth def_ui rp (max_wire + 1)).`b) = fmul (nth def_ui rp (max_wire + 1)).`a rv.`alpha by ringeq.
       by smt(@PrimeField).
       rewrite mul1f.
@@ -463,7 +457,7 @@ theory LPZK.
     move : (H14 (max_wire + 1)); have ->: 0 <= max_wire + 1 && max_wire + 1 < size rv.`y by smt().
     progress; rewrite !H28.
     case (fmul (eval_gates l inst w) (eval_gates r inst w) = fzero); progress.
-      rewrite H30 mulf0.
+      rewrite H29 mulf0.
       have ->: fadd (fadd (fmul rv.`alpha (nth def_ui rp (max_wire + 1)).`a) (nth def_ui rp (max_wire + 1)).`b) (fsub fzero (nth def_ui rp (max_wire + 1)).`b) = fmul (nth def_ui rp (max_wire + 1)).`a rv.`alpha by ringeq.
       by smt(@PrimeField).
       rewrite mul1f.
@@ -516,8 +510,7 @@ theory LPZK.
         var alpha, y;
 
         alpha <$ FDistr.dt;
-        y <- map (fun u => {| v = fadd (fmul alpha u.`a) u.`b ; 
-                              v' = fadd (fmul alpha u.`a') u.`b' |}) rp;
+        y <- map (fun u => {| v = fadd (fmul alpha u.`a) u.`b |}) rp;
 
         return ({| alpha = alpha; y = y  |});
       }
@@ -543,7 +536,6 @@ theory LPZK.
         wp; rnd; wp; call (_ : true); wp; skip; progress.
           by simplify; rewrite size_map //=.
           by rewrite (nth_map def_ui def_yi); first by move : H1; rewrite size_map.
-          by rewrite (nth_map def_ui def_yi); move : H1; rewrite size_map.
       wp; rnd; wp; simplify; call (mp_commit_exec rp_ x_); skip; progress.
       case (! language x{hr}); progress; last by rewrite mu0; smt.
       rewrite /prove /=.
@@ -558,7 +550,7 @@ theory LPZK.
       case (n <> fzero); progress; last by rewrite mu0; smt.
       rewrite mul1f /=.
       case (0 <= max_wire+1 < size rp{hr}); progress; last first.
-        have ->: (fun (x : t) => fadd (nth def_yi (map (fun (u : ui_t) => {| v = fadd (fmul x u.`a) u.`b; v' = fadd (fmul x u.`a') u.`b'; |}) rp{hr}) (max_wire+1)).`v (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) = fmul n x) = (fun (x : t) => fadd (def_yi).`v (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) = fmul n x).
+        have ->: (fun (x : t) => fadd (nth def_yi (map (fun (u : ui_t) => {| v = fadd (fmul x u.`a) u.`b |}) rp{hr}) (max_wire+1)).`v (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) = fmul n x) = (fun (x : t) => fadd (def_yi).`v (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) = fmul n x).
         rewrite fun_ext /(==); progress.
         case (!(0 <= max_wire)); progress; first by smt.
         by rewrite nth_default; first by rewrite size_map; smt().
@@ -566,7 +558,7 @@ theory LPZK.
         have ->: mu FDistr.dt (fun (x : t) => fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b = fmul n x) = mu1 FDistr.dt (fdiv (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) n).
           by congr; rewrite fun_ext /(==); progress; smt(@PrimeField).
         by rewrite FDistr.dt1E.
-      have ->: (fun (x : t) => fadd (nth def_yi (map (fun (u : ui_t) => {| v = fadd (fmul x u.`a) u.`b; v' = fadd (fmul x u.`a') u.`b'; |}) rp{hr}) (max_wire + 1)).`v (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) = fmul n x) = (fun (x : t) => fadd ((fun (u : ui_t) => {| v = fadd (fmul x u.`a) u.`b; v' = fadd (fmul x u.`a') u.`b'; |}) (nth def_ui rp{hr} (max_wire + 1))).`v (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) = fmul n x).
+      have ->: (fun (x : t) => fadd (nth def_yi (map (fun (u : ui_t) => {| v = fadd (fmul x u.`a) u.`b |}) rp{hr}) (max_wire + 1)).`v (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) = fmul n x) = (fun (x : t) => fadd ((fun (u : ui_t) => {| v = fadd (fmul x u.`a) u.`b |}) (nth def_ui rp{hr} (max_wire + 1))).`v (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b) = fmul n x).
         by rewrite fun_ext /(==); progress; rewrite (nth_map def_ui def_yi).
       simplify.
       pose m := (fsub (eval_gates gg inst w) (nth def_ui rp{hr} (max_wire + 1)).`b).
@@ -626,20 +618,20 @@ theory LPZK.
       with gg = PInput wid => 
         let b = (nth def_ui u wid).`b in
         let w = fzero in
-        PInputZ wid {| m = fsub w b ; m' = fzero ; c = fzero |}
+        PInputZ wid {| m = fsub w b |}
 
       with gg = SInput wid => 
         let b = (nth def_ui u wid).`b in
         let w = fzero in
-        SInputZ wid {| m = fsub w b ; m' = fzero ; c = fzero |}
+        SInputZ wid {| m = fsub w b |}
 
       with gg = Constant gid c => 
         let b = (nth def_ui u gid).`b in
         let w = fzero in
-        ConstantZ gid {| m = fsub w b ; m' = fzero ; c = fzero |}
+        ConstantZ gid {| m = fsub w b |}
 
       with gg = Addition gid wl wr =>
-        AdditionZ gid {| m = fzero ; m' = fzero ; c = fzero |} (gen_z_sim u wl xp) (gen_z_sim u wr xp)
+        AdditionZ gid {| m = fzero |} (gen_z_sim u wl xp) (gen_z_sim u wr xp)
 
       with gg = Multiplication gid l r => 
         let wl = fzero in
@@ -647,18 +639,16 @@ theory LPZK.
         let w = fmul wl wr in
 
         let ui = nth def_ui u gid in
-        let ai = ui.`a in let ai' = ui.`a' in
-        let bi = ui.`b in let bi' = ui.`b' in
+        let ai = ui.`a in
+        let bi = ui.`b in
 
         let ul = nth def_ui u (get_gid l) in
-        let al = ul.`a in let al' = ui.`a' in
+        let al = ul.`a in
 
         let ur = nth def_ui u (get_gid r) in
-        let ar = ur.`a in let ar' = ur.`a' in
+        let ar = ur.`a in
 
-        MultiplicationZ gid {| m = fsub w bi ; 
-                               m' = fsub (fmul al ar) ai' ; 
-                               c = fsub (fsub (fadd (fmul al wr) (fmul ar wl)) ai) bi' |}
+        MultiplicationZ gid {| m = fsub w bi |}
                             (gen_z_sim u l xp) (gen_z_sim u r xp).
   
     (** Auxiliar lemma to be used in the induction proof. It proves that only the first
@@ -696,20 +686,6 @@ theory LPZK.
         rewrite !nth_cat /= size_cat /=.
         (have ->: gid < size rp + 1 by smt()) => //=.
         by (have ->: gid < size rp by smt ()) => //=.
-        rewrite !nth_cat /= size_cat /=.
-        (have ->: get_gid wl < size rp + 1 by smt()) => //=.
-        (have ->: get_gid wl < size rp by smt()) => //=.
-        (have ->: get_gid wr < size rp + 1 by smt()) => //=.
-        (have ->: get_gid wr < size rp by smt()) => //=.
-        (have ->: gid < size rp + 1 by smt()) => //=.
-        by (have ->: gid < size rp by smt()) => //=.
-      rewrite !nth_cat /= size_cat /=.
-      (have ->: get_gid wl < size rp + 1 by smt()) => //=.
-      (have ->: get_gid wl < size rp by smt()) => //=.
-      (have ->: get_gid wr < size rp + 1 by smt()) => //=.
-      (have ->: get_gid wr < size rp by smt()) => //=.
-      (have ->: gid < size rp + 1 by smt()) => //=.
-      by (have ->: gid < size rp by smt()) => //=.
       by rewrite H4 //=.
       by rewrite H5 //=.
     qed.
@@ -749,20 +725,6 @@ theory LPZK.
         rewrite !nth_cat /= size_cat /=.
         (have ->: gid < size rp + 1 by smt()) => //=.
         by (have ->: gid < size rp by smt ()) => //=.
-        rewrite !nth_cat /= size_cat /=.
-        (have ->: get_gid wl < size rp + 1 by smt()) => //=.
-        (have ->: get_gid wl < size rp by smt()) => //=.
-        (have ->: get_gid wr < size rp + 1 by smt()) => //=.
-        (have ->: get_gid wr < size rp by smt()) => //=.
-        (have ->: gid < size rp + 1 by smt()) => //=.
-        by (have ->: gid < size rp by smt()) => //=.
-      rewrite !nth_cat /= size_cat /=.
-      (have ->: get_gid wl < size rp + 1 by smt()) => //=.
-      (have ->: get_gid wl < size rp by smt()) => //=.
-      (have ->: get_gid wr < size rp + 1 by smt()) => //=.
-      (have ->: get_gid wr < size rp by smt()) => //=.
-      (have ->: gid < size rp + 1 by smt()) => //=.
-      by (have ->: gid < size rp by smt()) => //=.
       by rewrite H4 //=.
       by rewrite H5 //=.
     qed.
@@ -809,7 +771,7 @@ theory LPZK.
         uniformly sampled, then the honest prover execution (that uses the correct witness values)
         and the simulator (that assumes all witness values are zero) are computationally 
         indistinguishable. *)
-    lemma isomorphism_eq topo gg (rp : u_t) ys rp' inst w : 
+    (*lemma isomorphism_eq topo gg (rp : u_t) ys rp' inst w : 
       valid_circuit {| topo = topo ; gates = gg ; out_wires = ys |} => 
       size rp = size rp' => 
       size rp = topo.`nsinputs + topo.`npinputs + topo.`ngates =>
@@ -818,15 +780,13 @@ theory LPZK.
                            fsub fzero (nth def_ui rp' k).`b) =>
       (forall (k : int), 0 <= k < size rp =>
                          (nth def_ui rp k).`a = (nth def_ui rp' k).`a) =>
-      (forall (k : int), 0 <= k < size rp =>
-                         (nth def_ui rp k).`a' = (nth def_ui rp' k).`a') =>
       (forall (k : gid_t), mem_gid k gg => 
                            is_multiplication (odflt (def_gate topo) (get_gate gg k)) =>
-                           fsub (fsub (fadd (fmul (nth def_ui rp (get_gid (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`2)).`a (eval_gates (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`3 inst w)) (fmul (nth def_ui rp (get_gid (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`3)).`a (eval_gates (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`2 inst w))) (nth def_ui rp k).`a) (nth def_ui rp k).`b' = 
-                           fsub (fsub (fadd (fmul (nth def_ui rp' (get_gid (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`2)).`a fzero) (fmul (nth def_ui rp' (get_gid (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`3)).`a fzero)) (nth def_ui rp' k).`a) (nth def_ui rp' k).`b') =>
+                           (fsub (fadd (fmul (nth def_ui rp (get_gid (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`2)).`a (eval_gates (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`3 inst w)) (fmul (nth def_ui rp (get_gid (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`3)).`a (eval_gates (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`2 inst w))) (nth def_ui rp k).`a) = 
+                           (fsub (fadd (fmul (nth def_ui rp' (get_gid (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`2)).`a fzero) (fmul (nth def_ui rp' (get_gid (as_multiplication (odflt (def_gate topo) (get_gate gg k))).`3)).`a fzero)) (nth def_ui rp' k).`a)) =>
       gen_z rp  gg inst w = gen_z_sim rp' gg inst.
     proof.
-      progress; move : H H2 H5; elim gg => //=.
+      progress; move : H H2 H4; elim gg => //=.
       (* Public input gate *)
       by move => wid /#.
       (* Secret input gate *)
@@ -856,9 +816,7 @@ theory LPZK.
       by rewrite H H2 /=.
       (* Multiplication gate *)
       move => gid wl wr Hl Hr Hvalid Hind Hind2; split.
-        congr; first by move : (Hind gid) => /=; rewrite mulf0.
-        by rewrite !H3; move : Hvalid; rewrite /valid_circuit /valid_gates /valid_topology /=; smt.
-        by move : (Hind2 gid) => /=.
+        congr; first by move : (Hind gid) => /=; rewrite mulf0 //=.
       split; first by rewrite Hl => //= /#.
       rewrite Hr => //=; first 2 by smt(). 
       progress; move : (Hind2 k).
@@ -866,6 +824,42 @@ theory LPZK.
       (have ->: mem_gid k wl <=> false by smt()) => //=.
       (have ->: get_gate wl k <> None <=> false by rewrite mem_gid_get_gateN => /#) => //=.
       by rewrite H H2 /=.
+    qed.*)
+
+lemma isomorphism_eq topo gg (rp : u_t) ys rp' inst w : 
+      valid_circuit {| topo = topo ; gates = gg ; out_wires = ys |} => 
+      size rp = size rp' => 
+      size rp = topo.`nsinputs + topo.`npinputs + topo.`ngates =>
+      (forall (k : gid_t), mem_gid k gg =>
+                           fsub (eval_until gg inst w k) (nth def_ui rp k).`b =
+                           fsub fzero (nth def_ui rp' k).`b) =>
+      (forall (k : int), 0 <= k < size rp =>
+                         (nth def_ui rp k).`a = (nth def_ui rp' k).`a) =>
+      gen_z rp  gg inst w = gen_z_sim rp' gg inst.
+    proof.
+      progress; move : H H2; elim gg => //=.
+      (* Public input gate *)
+      by move => wid /#.
+      (* Secret input gate *)
+      by move => wid /#.
+      (* Constant gate *)
+      by move => gid c /#.
+      (* Addition gate *)
+      move => gid wl wr Hl Hr Hvalid Hind; split.
+        rewrite Hl 1:/#; progress; move : (Hind k).
+        (have ->: gid = k <=> false by smt()) => //=.
+        (have ->: k = gid <=> false by smt()) => //=.
+        by rewrite H /=.
+      rewrite Hr 1:/#; progress; move : (Hind k).
+      (have ->: gid = k <=> false by smt()) => //=.
+      (have ->: k = gid <=> false by smt()) => //=.
+      rewrite H /=.
+      by (have ->: mem_gid k wl <=> false by smt()) => //=.
+      (* Multiplication gate *)
+      move => gid wl wr Hl Hr Hvalid Hind; split.
+        congr; first by move : (Hind gid) => /=; rewrite mulf0 //=.
+      split; first by rewrite Hl => //= /#.
+      rewrite Hr => //=; first 2 by smt(). 
     qed.
 
     (** Simulator module. The simulator will behave according to the [commit] operation, but
@@ -901,9 +895,9 @@ theory LPZK.
     module RP : RandP_t = {
       proc gen(xp : prover_input_t) : prover_rand_t = {
         var w, x, c, inst, topo, gg, rp;
-        var a, b, a', b';
-        var a_final_const, b_final_const, a'_final_const, b'_final_const;
-        var a_final_mul, b_final_mul, a'_final_mul, b'_final_mul;
+        var a, b;
+        var a_final_const, b_final_const;
+        var a_final_mul, b_final_mul;
 
         var i;
         
@@ -918,10 +912,8 @@ theory LPZK.
         while (i < topo.`npinputs + topo.`nsinputs + topo.`ngates) {
           a <$ FDistr.dt;
           b <$ FDistr.dt;
-          a' <$ FDistr.dt;
-          b' <$ FDistr.dt;
 
-          rp <- rp ++ [{| a = a ; b = b ; a' = a' ; b' = b' |}];
+          rp <- rp ++ [{| a = a ; b = b |}];
   
           i <- i + 1;
         }
@@ -929,18 +921,14 @@ theory LPZK.
         (* sample randomness for final constant gate *)
         a_final_const <$ FDistr.dt;
         b_final_const <$ FDistr.dt;
-        a'_final_const <$ FDistr.dt;
-        b'_final_const <$ FDistr.dt;
 
-        rp <- rp ++ [{| a = a_final_const ; b = b_final_const ; a' = a'_final_const ; b' = b'_final_const |}];
+        rp <- rp ++ [{| a = a_final_const ; b = b_final_const |}];
 
         (* sample randomness for final multiplication gate *)
         a_final_mul <$ (FDistr.dt \ ((=)fzero));
         b_final_mul <$ FDistr.dt;
-        a'_final_mul <$ FDistr.dt;
-        b'_final_mul <$ FDistr.dt;
 
-        rp <- rp ++ [{| a = a_final_mul ; b = b_final_mul ; a' = a'_final_mul ; b' = b'_final_mul |}];
+        rp <- rp ++ [{| a = a_final_mul ; b = b_final_mul |}];
 
         return rp;
       }
@@ -1023,39 +1011,24 @@ theory LPZK.
                      fsub fzero (nth def_ui rp0{2} k).`b) /\ 
                   (* a isomorphism *)
                   (forall (k : int), 0 <= k < size rp0{2} =>
-                     (nth def_ui rp0{1} k).`a = (nth def_ui rp0{2} k).`a) /\
-                  (* a' isomorphism *)
-                  (forall (k : int), 0 <= k < size rp0{2} =>
-                     (nth def_ui rp0{1} k).`a' = (nth def_ui rp0{2} k).`a') /\
-                  (* b' isomorphism *)
-                  (forall (k : gid_t), 
-                     mem_gid k gg{2} => 
-                     is_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k)) =>
-                     fsub (fsub (fadd (fmul (nth def_ui rp0{1} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`2)).`a (eval_gates (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`3 inst{2} w{2})) (fmul (nth def_ui rp0{1} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`3)).`a (eval_gates (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`2 inst{2} w{2}))) (nth def_ui rp0{1} k).`a) (nth def_ui rp0{1} k).`b' =
-                     fsub (fsub (fadd (fmul (nth def_ui rp0{2} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`2)).`a fzero) (fmul (nth def_ui rp0{2} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`3)).`a fzero)) (nth def_ui rp0{2} k).`a) (nth def_ui rp0{2} k).`b')).
+                     (nth def_ui rp0{1} k).`a = (nth def_ui rp0{2} k).`a)).                  
       while (#pre /\ ={i} /\ size rp0{2} = i{2} /\ size rp0{1} = size rp0{2} /\ 
              0 <= i{2} <= topo{2}.`npinputs + topo{2}.`nsinputs + topo{2}.`ngates /\
              (forall k, 0 <= k < i{2} => 
                         fsub (eval_until gg{2} inst{2} w{2} k) (nth def_ui rp0{1} k).`b = 
                         fsub fzero (nth def_ui rp0{2} k).`b) /\ 
              (forall (k : int), 0 <= k < i{2} => 
-                                (nth def_ui rp0{1} k).`a = (nth def_ui rp0{2} k).`a) /\
-             (forall (k : int), 0 <= k < i{2} =>
-                                (nth def_ui rp0{1} k).`a' = (nth def_ui rp0{2} k).`a') /\
-             (forall (k : int), 0 <= k < i{2} =>
-                                is_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k)) =>
-                                fsub (fsub (fadd (fmul (nth def_ui rp0{1} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`2)).`a (eval_gates (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`3 inst{2} w{2})) (fmul (nth def_ui rp0{1} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`3)).`a (eval_gates (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`2 inst{2} w{2}))) (nth def_ui rp0{1} k).`a) (nth def_ui rp0{1} k).`b' =
-                                fsub (fsub (fadd (fmul (nth def_ui rp0{2} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`2)).`a fzero) (fmul (nth def_ui rp0{2} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} k))).`3)).`a fzero)) (nth def_ui rp0{2} k).`a) (nth def_ui rp0{2} k).`b')).
+                                (nth def_ui rp0{1} k).`a = (nth def_ui rp0{2} k).`a)).
         wp.
-        (* b' isomorphism *)
+        (*(* b' isomorphism *)
         rnd (fun r => fsub r (fsub (fadd (fmul (nth def_ui rp0{1} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} i{2}))).`2)).`a (eval_gates (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} i{2}))).`3 inst{2} w{2})) (fmul (nth def_ui rp0{1} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} i{2}))).`3)).`a (eval_gates (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} i{2}))).`2 inst{2} w{2}))) (nth def_ui rp0{1} i{2}).`a)) 
             (fun r => fadd r (fsub (fadd (fmul (nth def_ui rp0{1} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} i{2}))).`2)).`a (eval_gates (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} i{2}))).`3 inst{2} w{2})) (fmul (nth def_ui rp0{1} (get_gid (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} i{2}))).`3)).`a (eval_gates (as_multiplication (odflt (def_gate topo{2}) (get_gate gg{2} i{2}))).`2 inst{2} w{2}))) (nth def_ui rp0{1} i{2}).`a)).
-        rnd.
+        rnd.*)
         (* b isomorphism *)
         rnd (fun r => fsub r (eval_until gg{2} inst{2} w0{2} i{2})) 
-            (fun r => fadd r (eval_until gg{2}  inst{2} w0{2} i{2})).
+            (fun r => fadd r (eval_until gg{2} inst{2} w0{2} i{2})).
         rnd.
-        skip; progress; first 4 by ringeq.
+        skip; progress; first 2 by ringeq.
           by rewrite size_cat /=.
           by rewrite !size_cat /= /#.
           by smt().
@@ -1075,90 +1048,57 @@ theory LPZK.
           (have ->: k < size rp0{1} <=> true by smt()) => //=.
           (have ->: k < size rp0{2} by smt()) => //=.
           by smt().
-          rewrite !nth_cat /=.
-          case (k = size rp0{2}); progress.
-          (have ->: size rp0{2} < size rp0{1} <=> false by smt()) => //=.
-          (have ->: size rp0{2} - size rp0{1} = 0 by smt()) => //=.
-          (have ->: k < size rp0{1} <=> true by smt()) => //=.
-          (have ->: k < size rp0{2} by smt()) => //=.
-          by smt().
-          rewrite !nth_cat /=.
-          case (k = size rp0{2}); progress.
-          case (get_gate c{2}.`gates (size rp0{2}) = None); progress; first by smt().
-          have : valid_gates c{2}.`topo (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates (size rp0{2})))).`2 by rewrite valid_gates_multiplication_wl => //= /#. 
-          progress.
-          (have ->: get_gid (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates (size rp0{2})))).`2 < size rp0{1} by rewrite H3 (multiplication_wl_gid_bound c{2}.`topo c{2}.`gates (size rp0{2})) => /#) => //=. 
-          (have ->: get_gid (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates (size rp0{2})))).`3 < size rp0{1} by rewrite H3 (multiplication_wr_gid_bound c{2}.`topo c{2}.`gates (size rp0{2})) => /#) => //=. 
-          (have ->: size rp0{2} < size rp0{1} <=> false by smt()) => //=.
-          (have ->: size rp0{2} - size rp0{1} = 0 by smt()) => //=.
-          (have ->: get_gid (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates (size rp0{2})))).`2 < size rp0{2} by rewrite (multiplication_wl_gid_bound c{2}.`topo c{2}.`gates (size rp0{2})) => /#) => //=. 
-          (have ->: get_gid (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates (size rp0{2})))).`3 < size rp0{2} by rewrite (multiplication_wr_gid_bound c{2}.`topo c{2}.`gates (size rp0{2})) => /#) => //=. 
-          ringeq; first by rewrite ofint0 /def_ui nth_default; first by rewrite H3.
-          (have ->: get_gid (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates k))).`2 < size rp0{1} by move : (multiplication_wl_gid_bound c{2}.`topo c{2}.`gates k) => /#) => //=.
-          (have ->: get_gid (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates k))).`3 < size rp0{1} by move : (multiplication_wr_gid_bound c{2}.`topo c{2}.`gates k) => /#) => //=.
-          (have ->: k < size rp0{1} by smt()) => //=.
-          (have ->: get_gid (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates k))).`2 < size rp0{2} by move : (multiplication_wl_gid_bound c{2}.`topo c{2}.`gates k) => /#) => //=.
-          (have ->: get_gid (as_multiplication (odflt (def_gate c{2}.`topo) (get_gate c{2}.`gates k))).`3 < size rp0{2} by move : (multiplication_wr_gid_bound c{2}.`topo c{2}.`gates k) => /#) => //=.
-          (have ->: k < size rp0{2} by smt()) => //=.
-          by rewrite H9 => //= /#. 
-        wp; skip; progress => //=; first 5 by smt().
+        wp; skip; progress => //=; first 4 by smt().
           by rewrite H12; smt(mem_gid_range).
-          by rewrite H15; smt(mem_gid_range).
-      rcondt{1} 12.
+      rcondt{1} 8.
         progress; do(wp;rnd); skip; progress.
         by rewrite !size_cat /= /#.
         rewrite !nth_cat /= !size_cat /=.
         (have ->: c{m0}.`topo.`nsinputs + c{m0}.`topo.`npinputs + c{m0}.`topo.`ngates + 1 < size rp0{hr} + 1 <=> false by smt()) => //=.
         (have ->: c{m0}.`topo.`nsinputs + c{m0}.`topo.`npinputs + c{m0}.`topo.`ngates + 1 - (size rp0{hr} + 1) = 0 by smt()) => //=.
         by move : (supp_dexcepted a_final_mul0 FDistr.dt ((=) fzero)) => /#.
-      rcondt{2} 12.
+      rcondt{2} 8.
         progress; do(wp;rnd); skip; progress.
         by rewrite !size_cat /= /#.
         rewrite !nth_cat /= !size_cat /=.
         (have ->: c{hr}.`topo.`nsinputs + c{hr}.`topo.`npinputs + c{hr}.`topo.`ngates + 1 < size rp0{hr} + 1 <=> false by smt()) => //=.
         (have ->: c{hr}.`topo.`nsinputs + c{hr}.`topo.`npinputs + c{hr}.`topo.`ngates + 1 - (size rp0{hr} + 1) = 0 by smt()) => //=.
         by move : (supp_dexcepted a_final_mul0 FDistr.dt ((=) fzero)) => /#.
-      rcondt{2} 25; first by progress; do(wp;rnd); skip.
+      rcondt{2} 21; first by progress; do(wp;rnd); skip.
       call (_ : true); wp; call (_ : true); wp.
-      (* b' isomorphism *)
+      (*(* b' isomorphism *)
       rnd (fun r => fsub r (fsub (fadd (fmul a_final_const{2} (eval_gates c{2}.`gates inst{2} w{2})) (fmul (nth def_ui rp0{1} (get_gid c{2}.`gates)).`a fone)) fzero)) 
           (fun r => fadd r (fsub (fadd (fmul a_final_const{2} (eval_gates c{2}.`gates inst{2} w{2})) (fmul (nth def_ui rp0{1} (get_gid c{2}.`gates)).`a fone)) fzero)).
       (* a' isomorphism *)
       rnd (fun r => fsub r (fsub (fmul a_final_const{1} (nth def_ui rp0{2} (get_gid c{2}.`gates)).`a) (fmul a_final_const{1} (nth def_ui rp0{2} (get_gid c{2}.`gates)).`a))) 
-          (fun r => fadd r (fsub (fmul a_final_const{2} (nth def_ui rp0{2} (get_gid c{2}.`gates)).`a) (fmul a_final_const{1} (nth def_ui rp0{2} (get_gid c{2}.`gates)).`a))).
+          (fun r => fadd r (fsub (fmul a_final_const{2} (nth def_ui rp0{2} (get_gid c{2}.`gates)).`a) (fmul a_final_const{1} (nth def_ui rp0{2} (get_gid c{2}.`gates)).`a))).*)
       (* b isomorphism *)
       rnd (fun r => fsub r (eval_gate (get_gid c{2}.`gates) c{2}.`gates inst{2} w0{2})) 
           (fun r => fadd r (eval_gate (get_gid c{2}.`gates) c{2}.`gates inst{2} w0{2})).
-      rnd; wp; rnd; rnd.
+      rnd; wp. (*rnd; rnd.*)
       (* b isomorphism *)
       rnd (fun r => fsub r fone) (fun r => fadd r fone).
-      rnd; skip; progress; first 8 by ringeq.
+      rnd; skip; progress; first 4 by ringeq.
         rewrite /commit /get_a /= /add_final_mul /= !nth_cat /= !size_cat /=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates + 1 < size rp0{1} + 1 <=> false by smt()) => //=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates + 1 - (size rp0{1} + 1) = 0 <=> true by smt()) => //=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates < size rp0{1} + 1 by smt()) => //=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates < size rp0{1} <=> false by smt()) => //=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates - size rp0{1} = 0 by smt()) => //=.
-        (have ->: get_gid c{2}.`gates < size rp0{1} + 1 <=> true by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit)) => //=.
-        (have ->: get_gid c{2}.`gates < size rp0{1} <=> true by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit)) => //=.
+        (*(have ->: get_gid c{2}.`gates < size rp0{1} + 1 <=> true by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit)) => //=.
+        (have ->: get_gid c{2}.`gates < size rp0{1} <=> true by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit)) => //=.*)
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates + 1 < size rp0{2} + 1 <=> false by smt()) => //=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates + 1 - (size rp0{2} + 1) = 0 by smt()) => //=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates < size rp0{2} + 1 <=> true by smt()) => //=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates < size rp0{2} <=> false by smt()) => //=.
         (have ->: c{2}.`topo.`npinputs + c{2}.`topo.`nsinputs + c{2}.`topo.`ngates - size rp0{2} = 0 <=> true by smt()) => //=.
-        (have ->: get_gid c{2}.`gates < size rp0{2} + 1 by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit)) => //=.
-        (have ->: get_gid c{2}.`gates < size rp0{2} by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit)) => //=.
+        (*(have ->: get_gid c{2}.`gates < size rp0{2} + 1 by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit)) => //=.
+        (have ->: get_gid c{2}.`gates < size rp0{2} by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit)) => //=.*)
         split. congr; first by rewrite eval_gate_gid; ringeq.
-          rewrite H6 /=; 
-            first by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit).
-          by ringeq.
-          rewrite H6 /=; 
-            first by move : H2; rewrite /valid_circuit /valid_topology /valid_gates /=; smt(@PrimeField @ArithmeticCircuit).
-          by ringeq.
-          split. congr; first by ringeq.
           rewrite (gen_z_cat rp0{1} c{2}.`topo c{2}.`gates c{2}.`out_wires inst{2} w{2}) 1,2:/#. 
           rewrite (gen_z_sim_cat rp0{2} c{2}.`topo c{2}.`gates c{2}.`out_wires) 1,2:/#. 
-          by rewrite (isomorphism_eq c{2}.`topo c{2}.`gates rp0{1} c{2}.`out_wires rp0{2} inst{2} w{2}) => // /#.
+          rewrite (isomorphism_eq c{2}.`topo c{2}.`gates rp0{1} c{2}.`out_wires rp0{2} inst{2} w{2}) => //; first 2 by smt().
+          by simplify; congr; ringeq. 
     qed.
 
     (** Another version of Zero-knowledge lemma, where we use the above equivalence lemma to
@@ -1171,7 +1111,7 @@ theory LPZK.
       size x.`2 = x.`1.`topo.`npinputs =>
       Pr[ GameReal(D, RP, MV).main(w,x) @ &m : res ] = 
       Pr[ GameIdeal(D, RP, MV, Simulator).main(w,x) @ &m : res ].
-    proof.  by progress; byequiv (zero_knowledge_eq &m) => //=. qed.
+    proof. by progress; byequiv (zero_knowledge_eq &m) => //=. qed.
 
   end section ZeroKnowledge.
 

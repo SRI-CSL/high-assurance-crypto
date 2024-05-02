@@ -122,8 +122,7 @@ theory LPZKEfficient.
     let alpha = rv.`alpha in let y = rv.`y in
     size y = size rp /\
     forall k, 0 <= k < size y => 
-      (get def_yi y k).`v = fadd (fmul alpha (get def_ui rp k).`a) (get def_ui rp k).`b /\
-      (get def_yi y k).`v' = fadd (fmul alpha (get def_ui rp k).`a') (get def_ui rp k).`b'.
+      (get def_yi y k).`v = fadd (fmul alpha (get def_ui rp k).`a) (get def_ui rp k).`b.
 
   (** Prover output type. At the end of the protocol, the prover has no output *)
   type prover_output_t = unit. 
@@ -140,20 +139,20 @@ theory LPZKEfficient.
     with gg = PInput wid => 
       let b = (get def_ui u wid).`b in
       let w = eval_gates_array gg xp xs in
-      PInputZ wid {| m = fsub w b ; m' = fzero ; c = fzero |}
+      PInputZ wid {| m = fsub w b |}
 
     with gg = SInput wid => 
       let b = (get def_ui u wid).`b in
       let w = eval_gates_array gg xp xs in
-      SInputZ wid {| m = fsub w b ; m' = fzero ; c = fzero |}
+      SInputZ wid {| m = fsub w b |}
 
     with gg = Constant gid c => 
       let b = (get def_ui u gid).`b in
       let w = eval_gates_array gg xp xs in
-      ConstantZ gid {| m = fsub w b ; m' = fzero ; c = fzero |}
+      ConstantZ gid {| m = fsub w b |}
 
     with gg = Addition gid wl wr =>
-      AdditionZ gid {| m = fzero ; m' = fzero ; c = fzero |} (gen_z u wl xp xs) (gen_z u wr xp xs)
+      AdditionZ gid {| m = fzero |} (gen_z u wl xp xs) (gen_z u wr xp xs)
 
     with gg = Multiplication gid l r => 
       let wl = eval_gates_array l xp xs in
@@ -161,18 +160,16 @@ theory LPZKEfficient.
       let w = fmul wl wr in
 
       let ui = get def_ui u gid in
-      let ai = ui.`a in let ai' = ui.`a' in
-      let bi = ui.`b in let bi' = ui.`b' in
+      let ai = ui.`a in
+      let bi = ui.`b in
 
       let ul = get def_ui u (get_gid l) in
-      let al = ul.`a in let al' = ui.`a' in
+      let al = ul.`a in
 
       let ur = get def_ui u (get_gid r) in
-      let ar = ur.`a in let ar' = ur.`a' in
+      let ar = ur.`a in
 
-      MultiplicationZ gid {| m = fsub w bi ; 
-                             m' = fsub (fmul al ar) ai' ; 
-                             c = fsub (fsub (fadd (fmul al wr) (fmul ar wl)) ai) bi' |}
+      MultiplicationZ gid {| m = fsub w bi |}
                           (gen_z u l xp xs) (gen_z u r xp xs).
 
  (** Gets the random [a] value from the prover randomness, i.e., gets the [a] random value
@@ -212,7 +209,7 @@ theory LPZKEfficient.
         if as_pinput gg = wid then
           let m = zi.`m in
           let v = (get def_yi r.`y wid).`v in
-          (true, PInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
+          (true, PInputF {| e = fadd v m |})
         else (false, bad)
       else (false, bad)
 
@@ -221,7 +218,7 @@ theory LPZKEfficient.
         if as_sinput gg = wid then
           let m = zi.`m in
           let v = (get def_yi r.`y wid).`v in
-          (true, SInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
+          (true, SInputF {| e = fadd v m |})
         else (false, bad)
       else (false, bad)
 
@@ -230,7 +227,7 @@ theory LPZKEfficient.
         if (as_constant gg).`1 = gid then
           let m = zi.`m in
           let v = (get def_yi r.`y gid).`v in
-          (true, ConstantF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
+          (true, ConstantF {| e = fadd v m |})
         else (false, bad)
       else (false, bad)
 
@@ -242,7 +239,7 @@ theory LPZKEfficient.
           let (bl, fl) = gen_f r wl zl in
           let (br, fr) = gen_f r wr zr in
           if (bl /\ br) then
-            (true, AdditionF {| e = fadd (get_e fl) (get_e fr) ; e' = fzero ; e'' = fzero |} fl fr)
+            (true, AdditionF {| e = fadd (get_e fl) (get_e fr) |} fl fr)
           else (false, bad)
         else (false, bad)
       else (false, bad)
@@ -255,22 +252,19 @@ theory LPZKEfficient.
           let (bl, fl) = gen_f r wl zl in
           let (br, fr) = gen_f r wr zr in
 
-          let m = zi.`m in let m' = zi.`m' in
+          let m = zi.`m in
 
           let alpha = r.`alpha in
           let y = get def_yi r.`y gid in
-          let v = y.`v in let v' = y.`v' in
+          let v = y.`v in
 
           let el = get_e fl in
           let er = get_e fr in
   
           let e = fadd v m in
-          let e' = fadd v' (fmul alpha m') in
 
           if (bl /\ br) then
-            (true, MultiplicationF {| e = e ; 
-                             e' = e' ; 
-                             e'' = fsub (fsub (fmul el er) e) (fmul alpha e') |} fl fr)
+            (true, MultiplicationF {| e = e |} fl fr)
           else (false, bad)
         else (false, bad)
       else (false, bad).
@@ -319,8 +313,6 @@ theory LPZKEfficient.
     progress. congr.
       by rewrite !eval_gates_array_eq nth_to_list.
       by rewrite !nth_to_list.
-      by rewrite !nth_to_list !eval_gates_array_eq.
-      by rewrite !nth_to_list.
     elim gg => //.
       by move => wid; progress; rewrite !nth_to_list /=.
       by move => wid; progress; rewrite !nth_to_list /=.
@@ -346,8 +338,6 @@ theory LPZKEfficient.
             /LPZKEfficient.prove /=.
     progress. congr.
       by rewrite !eval_gates_list_eq get_of_list.
-      by rewrite !get_of_list.
-      by rewrite !get_of_list !eval_gates_list_eq.
       by rewrite !get_of_list.
     elim gg => //.
       by move => wid; progress; rewrite !get_of_list /=.
@@ -489,8 +479,6 @@ theory LPZKEfficient.
         by rewrite /create_verifier_rand /= !size_to_list.
         move : H7; rewrite /create_verifier_rand /= size_to_list /=; progress.
         by rewrite -!nth_to_list => /#.
-        move : H7; rewrite /create_verifier_rand /= size_to_list /=; progress.
-        by rewrite -!nth_to_list => /#.
   qed.
 
   (** Completeness proof *)
@@ -578,17 +566,7 @@ theory LPZKEfficient.
         move : (H2 k); rewrite H0 H1 /= /LPZKEfficient.def_yi /= /def_yi /= 
                                /LPZKEfficient.def_ui /= /def_ui /=.
         by progress; rewrite of_listK. 
-        move : H; rewrite /valid_rand_verifier /= !size_of_list !get_of_list.
-        progress.
-        move : (H2 k); rewrite H0 H1 /= /LPZKEfficient.def_yi /= /def_yi /= 
-                               /LPZKEfficient.def_ui /= /def_ui /=.
-        by progress; rewrite of_listK. 
         by move : H; rewrite /valid_rand_verifier /=; rewrite !size_of_list !size_to_list.
-        move : H H1.
-        rewrite /valid_rand_verifier /= !size_of_list !size_to_list.
-        progress; move : (H1 k).
-        by rewrite H0 H2 /= !get_of_list /LPZKEfficient.def_yi /= /def_yi /= 
-                   /LPZKEfficient.def_ui /= /def_ui /= !of_listK.
         move : H H1.
         rewrite /valid_rand_verifier /= !size_of_list !size_to_list.
         progress; move : (H1 k).
@@ -719,7 +697,7 @@ theory LPZKEfficient.
             smt().
           wp; skip; progress.
             smt().
-      seq 12 11 : (#pre /\ rp{1} = of_list rp{2} /\ rp1{1} = rp0{2}).
+      seq 8 7 : (#pre /\ rp{1} = of_list rp{2} /\ rp1{1} = rp0{2}).
        by  wp; do rnd; wp; do rnd; skip; progress.
       if => //=; last by rnd.
         progress.
