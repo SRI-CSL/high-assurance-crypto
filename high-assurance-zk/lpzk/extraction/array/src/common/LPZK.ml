@@ -773,22 +773,6 @@ let prove (r: verifier_rand_t) (x: (topology_t * gates_t) * ((Z.t) array))
   else
   false
 
-  (*let (topo4,
-  gg4) =
-  circ in
-  if valid_circuit circ
-  then
-  
-  let (b2,
-  f) =
-  gen_f r (snd (add_final_mul (topo4, gg4))) z1 in
-  let (n) =
-  z' in
-  boolean_and (boolean_not (logical_equality n (Z.zero ))) b2 && logical_equality 
-                                                                 (get_e1 f)
-                                                                 (fmul  n 
-                                                                 r.alpha)*)
-
 type trace_t = z_t * ((Z.t) * (Z.t))
 
 let protocol (r: (ui_t array) * verifier_rand_t)
