@@ -70,7 +70,12 @@ proof.
   move : H1; rewrite H2 /=; progress.
   case (y = x'.`1); progress; first by smt().
   have : x \in unzip1 (assoc_rem y l) by smt().
-  by rewrite /assoc_rem; smt.
+  rewrite /assoc_rem. 
+rewrite !mapP.
+progress.
+exists x0.
+progress.
+smt(@List).
 qed.
 
 (** Proves that [l.[x]] = [(assoc_rem y l).[x]] if **x <> l**, for an association list [l] *)
@@ -158,9 +163,14 @@ lemma unzip1_map_rem_assoc (s : ('a * 'b) list) x :
   unzip1 (rem (x, oget (assoc s x)) s) = rem x (unzip1 s).
 proof.
 elim s => //=.
-
 move => x' s; progress.
-smt.
+have ->: x' = (fst x', snd x') by smt().
+rewrite (assoc_cons).
+simplify.
+case (x'.`1 = x); progress.
+have ->: x = x'.`1 <=> false by smt().
+simplify.
+by rewrite H.
 qed.
 
 (** Proves the domain of an association list is equal up to permutation to the domain of an
@@ -200,8 +210,14 @@ clear H H0.
 elim s.
 progress.
 progress.
-smt.
-smt.
+have ->: x0 = (fst x0, snd x0) by smt().
+rewrite (assoc_cons).
+simplify.
+case (x0.`1 = x); progress.
+have ->: x = x0.`1 <=> false by smt().
+simplify.
+by rewrite H.
+smt(@List).
 rewrite uniq_unzip1_assoc_rem.
 done.
 qed.
@@ -217,7 +233,14 @@ clear H0.
 elim s.
 progress.
 progress.
-smt.
+have ->: x0 = (fst x0, snd x0) by smt().
+rewrite (assoc_cons).
+simplify.
+case (x0.`1 = x); progress.
+smt(@List).
+have ->: x = x0.`1 <=> false by smt().
+simplify.
+smt(@List).
 qed.
 
 (** Proves that, for an association list [s], the [i]th element of that list is a pair consisting
@@ -226,9 +249,9 @@ lemma nth_assoc (x : 'a) (y : 'b) (s : ('a * 'b) list) i :
   0 <= i < size s =>
   nth (x,y) s i = (nth x (unzip1 s) i, nth y (unzip2 s) i).
 proof.
-  elim s => /> x' s; progress.
-  case (i = 0); progress; first by smt().
-  by smt.
+progress.
+rewrite !(nth_map witness) => //=.
+smt(@List).
 qed.
 
 (** Gives another definition of an association list [s], as 

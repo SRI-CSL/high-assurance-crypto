@@ -57,8 +57,7 @@ test-array:
 	$(call run-test,array,$(prime),$(size),$(cores))
 
 check-ec:
-	opam switch 4.14.0
-	$(ECTEST) --timeout="10" --jobs="0" config/tests.config lpzk
+	$(ECTEST) --jobs="0" config/tests.config lpzk
 
 clean:
 	$(CD) $(IMPLDIRS); $(MAKE) clean

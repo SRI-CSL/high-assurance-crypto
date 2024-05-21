@@ -13,7 +13,8 @@
 *)
 require import Int List.
 
-from Utilities require import ACircuit Array.
+from ArithmeticCircuit require import ACircuit.
+from Utilities require import Array.
 
 (** We will use the generic field formalization in the *PrimeField.ec* file to define the type
     of circuit wires *)
