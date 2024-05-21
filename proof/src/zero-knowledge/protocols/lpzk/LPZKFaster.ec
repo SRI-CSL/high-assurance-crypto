@@ -35,8 +35,8 @@
 *)
 require import Int Real List Distr.
 
-from DVNIZK require import ADVNIZKPProtocol.
-from DVNIZK require import Completeness Soundness ZeroKnowledge.
+from DVNIZK require import ADVNIZKProtocol.
+from DVNIZK require import DVNIZKCompleteness DVNIZKSoundness DVNIZKZeroKnowledge.
 from Zarith require import PrimeField.
 
 from LPZK require import LPZK.
@@ -68,7 +68,7 @@ theory LPZKFaster.
   type prover_rand_t = LPZK.prover_rand_t.
 
   (** Prover randomness is considered valid the same way as in **LPZK** *)
-  op valid_rand_prover (r : prover_rand_t) (x : prover_input_t) : bool = 
+  op valid_rand_prover (r : prover_rand_t) (x : statement_t) : bool = 
     LPZK.valid_rand_prover r x.
 
   (** The verifier randomness is the same as in **LPZK** *)
@@ -93,7 +93,7 @@ theory LPZKFaster.
   type f_t = LPZK.f_t.
 
   (** We define a *bad* [f] value to cover the case where the message integrity check fails *)
-  op bad : f_t = PInputF ({| e = fzero |}).
+  op bad : f_t = PInputF ({| e = fzero ; e' = fzero ; e'' = fzero |}).
 
   (** Improved [gen_f] operator, that performs a single circuit iteration computing [f] and
       attesting the circuit integrity at the same time. It will output a pair [bool * f_t] where
@@ -103,13 +103,13 @@ theory LPZKFaster.
       If the commitment message validity check fails, then [gen_f] will output the [bad] 
       [f] defined above. If the message is valid, it will output an [f] in accordance with
       the commitment message *)
-  op gen_f (r : verifier_rand_t) (gg : gates_t) (z : z_t) =
+  op gen_f (r : verifier_rand_t) (gg : gates_t) (z : z_t) : bool * f_t =
     with z = PInputZ wid zi => 
       if is_pinput gg then
         if as_pinput gg = wid then
           let m = zi.`m in
           let v = (nth def_yi r.`y wid).`v in
-          (true, PInputF {| e = fadd v m |})
+          (true, PInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
         else (false, bad)
       else (false, bad)
 
@@ -118,7 +118,7 @@ theory LPZKFaster.
         if as_sinput gg = wid then
           let m = zi.`m in
           let v = (nth def_yi r.`y wid).`v in
-          (true, SInputF {| e = fadd v m |})
+          (true, SInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
         else (false, bad)
       else (false, bad)
 
@@ -127,7 +127,7 @@ theory LPZKFaster.
         if (as_constant gg).`1 = gid then
           let m = zi.`m in
           let v = (nth def_yi r.`y gid).`v in
-          (true, ConstantF {| e = fadd v m |})
+          (true, ConstantF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
         else (false, bad)
       else (false, bad)
 
@@ -138,8 +138,10 @@ theory LPZKFaster.
         if gid = gid' then
           let (bl, fl) = gen_f r wl zl in
           let (br, fr) = gen_f r wr zr in
+          let m = zi.`m in
+          let v = (nth def_yi r.`y gid).`v in
           if (bl /\ br) then
-            (true, AdditionF {| e = fadd (get_e fl) (get_e fr) |} fl fr)
+            (true, AdditionF {| e = fadd v m ; e' = fzero ; e'' = fzero |} fl fr)
           else (false, bad)
         else (false, bad)
       else (false, bad)
@@ -152,19 +154,23 @@ theory LPZKFaster.
           let (bl, fl) = gen_f r wl zl in
           let (br, fr) = gen_f r wr zr in
 
-          let m = zi.`m in
+          let m = zi.`m_mul in
+          let m' = zi.`m' in
 
           let alpha = r.`alpha in
           let y = nth def_yi r.`y gid in
           let v = y.`v in
+          let v' = y.`v' in
 
           let el = get_e fl in
           let er = get_e fr in
-  
+
           let e = fadd v m in
+          let e' = fadd v' (fmul alpha m') in
+          let e'' = fsub (fsub (fmul el er) e) (fmul alpha e') in
 
           if (bl /\ br) then
-            (true, MultiplicationF {| e = e |} fl fr)
+            (true, MultiplicationF {| e = e ; e' = e' ; e'' = e'' |} fl fr)
           else (false, bad)
         else (false, bad)
       else (false, bad).
@@ -172,6 +178,20 @@ theory LPZKFaster.
   (** New [prove] function, equal to the [prove] function specified in *LPZK.ec*, but invokes
       the newly defined [gen_f] operator *)
   op prove (r : verifier_rand_t) (x : verifier_input_t) (c : commitment_t) : bool =
+    let (z, z') = c in
+    let (circ, inst) = x in
+    if (valid_circuit circ) then
+      let circ = add_final_mul circ in
+      let n = z' in
+      if n <> fzero then
+        let (b, f) = gen_f r circ.`gates z in
+        if (b /\ batch_check f z r.`alpha) then
+          get_e f = fmul n r.`alpha
+        else false
+      else false
+    else false.
+
+  op prove_old (r : verifier_rand_t) (x : verifier_input_t) (c : commitment_t) : bool =
     let (z, z') = c in
     let (circ, inst) = x in
     let topo = circ.`topo in
@@ -199,7 +219,112 @@ theory LPZKFaster.
   lemma z_validity_equivalence (rp : prover_rand_t) (rv : verifier_rand_t) gg z :
     valid_z_gates z gg <=>
     (LPZKFaster.gen_f rv gg z).`1.
-  proof. by elim: z gg => //= /#. qed.
+  proof. elim: gg z => //=.
+progress.
+move : H.
+elim z => //=.
+smt().
+smt().
+
+progress.
+move : H.
+elim z => //=.
+smt().
+smt().
+
+progress.
+move : H.
+elim z => //=.
+smt().
+smt().
+
+progress.
+move : (H (as_additionz z).`3).
+move : (H0 (as_additionz z).`4).
+rewrite H2 //=.
+rewrite H3 //=.
+progress.
+clear H H0.
+move : H5 H4 H3 H2 H1.
+case z => //=.
+progress.
+smt().
+smt().
+smt().
+have : exists gid zi zl zr, z = AdditionZ gid zi zl zr.
+clear H1.
+move : H2.
+by case z => //= /#.
+progress.
+move : H1.
+simplify.
+smt().
+have : exists gid zi zl zr, z = AdditionZ gid zi zl zr.
+clear H1.
+move : H2.
+by case z => //= /#.
+progress.
+move : H1.
+simplify.
+smt().
+
+progress.
+move : (H (as_multiplicationz z).`3).
+move : (H0 (as_multiplicationz z).`4).
+rewrite H2 //=.
+rewrite H3 //=.
+progress.
+clear H H0.
+move : H5 H4 H3 H2 H1.
+case z => //=.
+progress.
+smt().
+smt().
+smt().
+have : exists gid zi zl zr, z = MultiplicationZ gid zi zl zr.
+clear H1.
+move : H2.
+by case z => //= /#.
+progress.
+move : H1.
+simplify.
+smt().
+have : exists gid zi zl zr, z = MultiplicationZ gid zi zl zr.
+clear H1.
+move : H2.
+by case z => //= /#.
+progress.
+move : H1.
+simplify.
+smt().
+qed.
+
+  lemma z_f_equivalence (rp : prover_rand_t) (rv : verifier_rand_t) gg z :
+    valid_z_gates z gg =>
+    (LPZKFaster.gen_f rv gg z).`2 = LPZK.gen_f rv z.
+  proof. 
+progress.
+have : (LPZKFaster.gen_f rv gg z).`1.
+smt(z_validity_equivalence).
+progress.
+clear H.
+move : H0.
+elim: z gg => //=.
+progress.
+smt().
+
+progress.
+smt().
+
+progress.
+smt().
+
+progress.
+smt().
+
+progress.
+smt().
+qed.
 
   (** Proves that the [prove] operator of *LPZK.ec* is equivalent to the optimized [prove] 
       operator defined here *)
@@ -207,37 +332,13 @@ theory LPZKFaster.
     LPZK.prove rv (({| topo = topo ; gates = gg ; out_wires = ys |}, inst)) c = 
     prove rv ({| topo = topo ; gates = gg ; out_wires = ys |}, inst) c.
   proof.
-    rewrite /prove; elim c => z n /=; rewrite /valid_z.
-    case (valid_z_gates z ((add_final_mul {| topo = topo ; gates = gg ; out_wires = ys |}))%LPZK.`gates); last first; progress.
-      have : (LPZKFaster.gen_f rv ((add_final_mul {| topo = topo ; gates = gg ; out_wires = ys |})).`gates z).`1 = false by smt(z_validity_equivalence).
-      by smt().
-    have : (LPZKFaster.gen_f rv ((add_final_mul {| topo = topo ; gates = gg ; out_wires = ys |})).`gates z).`1 by smt(z_validity_equivalence).
-    progress.
-    have : exists b f, (b,f) = gen_f rv (add_final_mul {| topo = topo ; gates = gg ; out_wires = ys |}).`gates z by exists (gen_f rv (add_final_mul {| topo = topo ; gates = gg ; out_wires = ys |}).`gates z).`1 (gen_f rv (add_final_mul {| topo = topo ; gates = gg ; out_wires = ys |}).`gates z).`2 => /#.
-    progress.
-    rewrite -H1 /=.
-    have ->: b = (gen_f rv (add_final_mul {| topo = topo ; gates = gg ; out_wires = ys |}).`gates z).`1 by smt().
-    have ->: f = (gen_f rv (add_final_mul {| topo = topo ; gates = gg ; out_wires = ys |}).`gates z).`2 by smt().
-    progress.
-    case (n <> fzero); progress.
-    rewrite /get_e /= H0 /=; congr.
-    clear H1; move : H H0.
-    rewrite /add_final_mul /=; elim z => //=.
-      move => gid zi zl zr /=; progress.
-    have : exists (bl, fl), (bl, fl) = gen_f rv (Constant (topo.`npinputs + topo.`nsinputs + topo.`ngates) fone) zl
-      by clear H4;
-      exists (gen_f rv (Constant (topo.`npinputs + topo.`nsinputs + topo.`ngates) fone) zl).`1 (gen_f rv (Constant (topo.`npinputs + topo.`nsinputs + topo.`ngates) fone) zl).`2 => /#.
-    progress.
-    move : H4; rewrite -H5 /=; progress.
-    have : exists (br, fr), (br, fr) = gen_f rv gg zr by clear H4; exists (gen_f rv gg zr).`1 (gen_f rv gg zr).`2 => /#.
-    progress.
-    move : H4; rewrite -H6 /=; progress; move : H4.
-    have ->: bl = (gen_f rv (Constant (topo.`npinputs + topo.`nsinputs + topo.`ngates) fone) zl).`1 by smt().
-    have ->: br = (gen_f rv gg zr).`1 by smt().
-    case ((gen_f rv (Constant (topo.`npinputs + topo.`nsinputs + topo.`ngates) fone) zl).`1); last first; progress. 
-    move : H7.
-    by case ((gen_f rv gg zr).`1).
-  qed.
+rewrite /prove //=.
+elim c => z n //=.
+have ->: (gen_f rv (add_final_mul {| topo = topo; gates = gg; out_wires = ys; |}).`gates z) = ((gen_f rv (add_final_mul {| topo = topo; gates = gg; out_wires = ys; |}).`gates z).`1, (gen_f rv (add_final_mul {| topo = topo; gates = gg; out_wires = ys; |}).`gates z).`2) by smt().
+progress.
+pose circ := (add_final_mul {| topo = topo; gates = gg; out_wires = ys; |}).
+smt(z_validity_equivalence z_f_equivalence).
+qed.
 
   (** Proves that the LPZK formalization in file *LPZK.ec* is equivalent to the optimized
       formalization provided here *)
@@ -246,7 +347,7 @@ theory LPZKFaster.
     protocol (rp, rv) ((w, ({| topo = topo ; gates = gg ; out_wires = ys |}, inst)), ({| topo = topo ; gates = gg ; out_wires = ys |}, inst)) by smt(prove_equivalence).
 
   (** Instantiation of the DVNIZK protocol syntax with the optimized LPZK types and operators *)
-  clone import ADVNIZKPProtocol.DVNIZKPProtocol with
+  clone import ADVNIZKProtocol.DVNIZKProtocol with
     type witness_t = witness_t,
     type statement_t = statement_t,
     type prover_input_t = prover_input_t,
@@ -281,15 +382,15 @@ theory LPZKFaster.
     elim xv => c inst /=.
     elim c => topo gg ys /=.
     progress.
-    rewrite /DVNIZKPProtocol.protocol -(protocol_equivalence rp rv topo gg ys w inst) 
-            /DVNIZKPProtocol.relation /= /LPZKFaster.relation /=.
-    by smt(LPZK.DVNIZKPProtocol.correct).
+    rewrite /DVNIZKProtocol.protocol -(protocol_equivalence rp rv topo gg ys w inst) 
+            /DVNIZKProtocol.relation /= /LPZKFaster.relation /=.
+    by smt(LPZK.DVNIZKProtocol.correct).
   qed.
 
   (** Completeness proof *)
   (** First, we import the completeness security definition instantiated with LPZKFaster *)
-  clone import Completeness as LZPKCompleteness with
-    theory DVNIZKPProtocol <- DVNIZKPProtocol.
+  clone import Completeness as LZPKFasterCompleteness with
+    theory DVNIZKProtocol <- DVNIZKProtocol.
 
   section Completeness.
 
@@ -321,13 +422,13 @@ theory LPZKFaster.
 
   (** Soundness proof *)
   (** First, we import the soundness security definition instantiated with LPZKFaster *)
-  clone import Soundness as LPZKSoundness with
-    theory DVNIZKPProtocol <- DVNIZKPProtocol.
+  clone import DVNIZKSoundness.Soundness as LPZKFasterSoundness with
+    theory DVNIZKProtocol <- DVNIZKProtocol.
 
   section Soundness.
 
     (** Malicious prover declaration *)
-    declare module MP <: LPZK.LPZKSoundness.MProver_t.
+    declare module MP <: MProver_t.
 
     (** Establishes the equivalence between the soundness game of **LPZK** and the soundness
         game of **LPZKFaster**. If both games are equivalent, then they will have the same
@@ -345,16 +446,15 @@ theory LPZKFaster.
       seq 1 1 : (#pre /\ ={rv}); first by
         inline *; wp; rnd; wp; skip; progress.
       if => //=; last by wp.
-        by smt().
       wp; skip; progress.
       case (language x{2}); progress; first by smt().
-      have ->: ! (LPZK.DVNIZKPProtocol.language x{2}) by smt().
+      have ->: ! (LPZK.DVNIZKProtocol.language x{2}) by smt().
       by simplify; smt(prove_equivalence).
     qed.
 
     (** Since the two soundness games are equivalent, they will have the same soundness error *)
     lemma soundness &m (x_ : statement_t) rp_ :
-                                 Pr [ Soundness(RV, MP).main(rp_, x_) @ &m : res ] <= 1%r / q%r.
+                                 Pr [ Soundness(RV, MP).main(rp_, x_) @ &m : res ] <= 2%r / q%r.
     proof.
       have ->: Pr[Soundness(RV, MP).main(rp_, x_) @ &m : res] = 
                Pr[LPZK.LPZKSoundness.Soundness(RV, MP).main(rp_, x_) @ &m : res]
@@ -366,15 +466,15 @@ theory LPZKFaster.
 
   (** Zero-knowledge proof *)
   (** First, we import the zero-knowledge security definition instantiated with LPZKFaster *)
-  clone import ZeroKnowledge as LPZKZeroKnowledge with
-    theory DVNIZKPProtocol <- DVNIZKPProtocol.
+  clone import DVNIZKZeroKnowledge.ZeroKnowledge as LPZKFasterZeroKnowledge with
+    theory DVNIZKProtocol <- DVNIZKProtocol.
 
   section ZeroKnowledge.
 
     (** Distinguisher declaration *)    
-    declare module D <: LPZK.LPZKZeroKnowledge.Distinguisher_t.
+    declare module D <: Distinguisher_t{-RealEvaluator, -IdealEvaluator, -LPZKZeroKnowledge.RealEvaluator, -Simulator, -LPZKZeroKnowledge.IdealEvaluator}.
     (** Malicious verifier declaration *)    
-    declare module MV <: LPZK.LPZKZeroKnowledge.MVerifier_t{-D}.
+    declare module MV <: MVerifier_t{-RealEvaluator, -IdealEvaluator, -LPZKZeroKnowledge.RealEvaluator, -D, -Simulator, -LPZKZeroKnowledge.IdealEvaluator}.
 
     (** Establishes the equivalence between the *real* world game of **LPZK** and the *real*
         world game of **LPZKFaster**. If both games are equivalent, then the *real* world of
@@ -382,11 +482,15 @@ theory LPZKFaster.
         consequently, **LPZKFaster** behavior could also be simulated by the simulator defined in
         *LPZK.ec*. *)    
     lemma game_real_equiv &m :
-      equiv [ GameReal(D, LPZK.RP, MV).main ~ LPZK.LPZKZeroKnowledge.GameReal(D, RP, MV).main :
-                ={glob RP, glob D, glob MV, w,x} ==> ={res} ].
+      equiv [ LPZKFasterZeroKnowledge.GameReal(D, LPZK.RP, MV).main ~ LPZKZeroKnowledge.GameReal(D, LPZK.RP, MV).main :
+                ={glob RP, glob D, glob MV} ==> ={res} ].
     proof.
-      proc; inline *.
-      sp 5 5 => /=.
+      proc; inline *. 
+      seq 1 1 : (#pre /\ ={xp, xv}); first by call (_ : true).
+      sp.
+      if => //; last first.
+        call (_ : true); skip; progress.
+      sp 7 7 => /=.
       seq 3 3 : (#pre /\ ={rp0}).
         case (topo{2}.`npinputs + topo{2}.`nsinputs + topo{2}.`ngates < 0).
           rcondf{1} 3. progress. wp; skip; progress. smt().
@@ -398,12 +502,16 @@ theory LPZKFaster.
           wp; skip; progress.
             smt().
             smt().
+            smt().
+            smt().
           wp; skip; progress.
             smt().
-      seq 7 7 : (#pre /\ ={rp} /\ rp{2} = rp0{2}).
+smt().
+smt().
+      seq 11 11 : (#pre /\ ={rp} /\ rp{2} = rp0{2}).
         wp. do rnd. wp. do rnd. skip; progress.
       (if; first by smt()); last first.
-        by rnd.
+        by wp; call (_ : true); wp; skip; progress.
       call (_ : true).
       wp.
       call (_ : true).
@@ -412,16 +520,11 @@ theory LPZKFaster.
 
     (** Zero-knowledge lemma for **LPZKFaster**, that uses the previous equivalence to prove 
         that the *real* world game is equivalent to the *ideal* world of **LPZK** *)  
-    lemma zero_knowledge &m (w : witness_t) (x : statement_t) :
-      valid_circuit x.`1 =>
-      relation w x =>
-      size w = x.`1.`topo.`nsinputs =>
-      size x.`2 = x.`1.`topo.`npinputs =>
-      Pr[ GameReal(D, RP, MV).main(w,x) @ &m : res ] = 
-      Pr[ LPZK.LPZKZeroKnowledge.GameIdeal(D, RP, MV, LPZK.Simulator).main(w,x) @ &m : res ].
-    proof.  
-      progress.
-      rewrite -(LPZK.zero_knowledge D MV) //=.
+    lemma zero_knowledge &m :
+      Pr[ LPZKFasterZeroKnowledge.GameReal(D, LPZK.RP, MV).main() @ &m : res ] = 
+      Pr[ LPZKZeroKnowledge.GameIdeal(D, MV, LPZK.Simulator).main() @ &m : res ].
+    proof.
+      rewrite -(LPZK.zero_knowledge D MV).
       by byequiv (game_real_equiv &m) => //=.
     qed.      
 

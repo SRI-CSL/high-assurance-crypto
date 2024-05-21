@@ -23,7 +23,7 @@
   verifier. This is natural restriction, that essentially assumes that randomness is sampled 
   uniformly by some honest random generator procedure.
 *)
-theory DVNIZKPProtocol.
+theory DVNIZKProtocol.
 
   (** Witness type. This type needs to be made concrete when the protocol is instantiated *)
   type witness_t.
@@ -51,7 +51,7 @@ theory DVNIZKPProtocol.
   type verifier_rand_t.
   (** Prover randomness validity predicate. Specifies what it means for an inputs to be 
       well-formed *)
-  op valid_rand_prover : prover_rand_t -> prover_input_t -> bool.
+  op valid_rand_prover : prover_rand_t -> statement_t -> bool.
   (** Verifier randomness validity predicate. The goal of this operator is to assure that the 
       randomness given to the verifier is *correlated* to the randomness given to the prover, and 
       represents an essential component of our formalization, since the two parties will only be 
@@ -61,10 +61,9 @@ theory DVNIZKPProtocol.
   (** Randomness validity predicate. Aggregates the **valid_rand_prover** and 
       **valid_rand_verifier** predicates to specify what it means for an randomness to be 
       well-formed *)
-  op valid_rands (r : prover_rand_t * verifier_rand_t) (x : prover_input_t * verifier_input_t) : bool =
+  op valid_rands (r : prover_rand_t * verifier_rand_t) (x : statement_t) : bool =
     let (rp, rv) = r in
-    let (xp, xv) = x in
-    valid_rand_prover rp xp /\ valid_rand_verifier rp rv xv.  
+    valid_rand_prover rp x /\ valid_rand_verifier rp rv x.  
 
   (** Prover output type. At the end of the protocol, the prover has no output *)
   type prover_output_t = unit. 
@@ -106,7 +105,7 @@ theory DVNIZKPProtocol.
   axiom correct (r : prover_rand_t * verifier_rand_t) 
                 (x : prover_input_t * verifier_input_t) :
     valid_inputs x =>
-    valid_rands r x =>
+    valid_rands r x.`1.`2 =>
     snd (snd (protocol r x)) = relation (fst (fst x)) (snd x).
 
-end DVNIZKPProtocol.
+end DVNIZKProtocol.

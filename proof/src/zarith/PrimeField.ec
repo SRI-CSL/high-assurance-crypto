@@ -273,6 +273,9 @@ by ringeq.
 lemma nosmt mulf0 (x:t): fmul x fzero = fzero
 by ringeq.
 
+lemma nosmt mul0f (x:t): fmul fzero x = fzero
+by ringeq.
+
 (** Auxiliar lemma, proving that [1x = x] *)
 lemma nosmt mul1f (x:t): fmul fone x = x
 by ringeq.
@@ -341,6 +344,8 @@ theory FDistr.
 
   (** Sampling probability of **1/q** *)
   axiom dt1E: forall (s:t), Distr.mu1 dt s = (1%r/q%r)%Real.
+
+  axiom dt2E: forall (a b c :t), mu dt (fun x => fadd (fadd (fmul (fexp x 2) a) (fmul x b)) c = fzero) = (2%r/q%r)%Real.
 
   (** The field probability distribution is defined for all values of the field *)
   axiom dt_ll: Distr.is_lossless dt.

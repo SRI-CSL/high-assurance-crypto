@@ -74,6 +74,14 @@ abbrev unzip1 ['a, 'b] (s : ('a * 'b) array) : 'a array =
 abbrev unzip2 ['a, 'b] (s : ('a * 'b) array) : 'b array =
   map (fun (p : 'a * 'b) => p.`2) s.
 
+lemma map_comp (f1 : 'b -> 'c) (f2 : 'a -> 'b) (s : 'a array) :
+  map (f1 \o f2) s = map f1 (map f2 s) by smt.
+
+axiom size_map (f : 'a -> 'b) (s : 'a array) : size (map f s) = size s.
+
+axiom get_map (x1 : 'a) (x2 : 'b) (f : 'a -> 'b) (n : int) (s : 'a array) :
+    0 <= n && n < size s => get x2 (map f s) n = f (get x1 s n).
+
 (** [mkseq f n] *)
 op mkseq (f : int -> 'a) (n : int) : 'a array = map f (iota_array 0 n).
 

@@ -14,13 +14,13 @@
       Pr [ Soundness(RV, MP).main(rp, x) : true ==> ={res} ] <= eps,
   for any soundness error *eps*
 *)
-from DVNIZK require import ADVNIZKPProtocol.
+from DVNIZK require import ADVNIZKProtocol.
 
 theory Soundness.
 
   (** Cloning an abstract DVNIZK protocol. When instantiating soundness, a concrete protocol
       must be provided. *)
-  clone import DVNIZKPProtocol.
+  clone import DVNIZKProtocol.
 
   (** Type of randomness generator procedures. Modules that realize this type should contain a 
       **gen** function that takes as input the prover randomness and generates the correlated
@@ -45,7 +45,7 @@ theory Soundness.
 
       rv <@ R.gen(rp);
       if (valid_rand_verifier rp rv x) {
-        b <- !language x /\ prove rv x c;
+        b <- !language x /\ valid_rand_prover rp x /\ prove rv x c;
       } else { b <- false; }
 
       return b;

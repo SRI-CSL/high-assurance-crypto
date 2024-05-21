@@ -38,8 +38,8 @@
 *)
 require import Int Real List.
 
-from DVNIZK require import ADVNIZKPProtocol.
-from DVNIZK require import Completeness Soundness ZeroKnowledge.
+from DVNIZK require import ADVNIZKProtocol.
+from DVNIZK require import DVNIZKCompleteness DVNIZKSoundness DVNIZKZeroKnowledge.
 from Zarith require import PrimeField.
 
 from Utilities require import Array.
@@ -49,6 +49,7 @@ from LPZK require import LPZK LPZKFaster.
 import LPZK.
 import ArithmeticCircuit.
 import Circuit.
+import LPZKFaster.
 
 theory LPZKEfficient.
 
@@ -97,13 +98,14 @@ theory LPZKEfficient.
   (** Randomness validity predicate for the prover. We consider the prover randomness to be valid
       if it has the correct number of elements and if the last [a] element of the prover 
       randomness is different than 0 *)
-  op valid_rand_prover (r : prover_rand_t) (x : prover_input_t) : bool =
-    let (w, st) = x in
-    let (c, inst) = st in
+print LPZK.valid_rand_prover.
+
+  op valid_rand_prover (r : prover_rand_t) (x : statement_t) : bool =
+    let (c, inst) = x in
     let topo = c.`topo in
     let gg = c.`gates in
     size r = topo.`nsinputs + topo.`npinputs + topo.`ngates + 2 /\
-    (get def_ui r (topo.`nsinputs + topo.`npinputs + topo.`ngates + 2 - 1)).`a <> fzero.
+    forall (k : int), 0 <= k && k < size r => (get def_ui r k).`a <> fzero.
 
   (** Verifier randomness specification *)
   (** The verifier will have an array composed of two field elements (v and v') per gate *)
@@ -121,8 +123,10 @@ theory LPZKEfficient.
   op valid_rand_verifier (rp : prover_rand_t) (rv : verifier_rand_t) (x : verifier_input_t) : bool =
     let alpha = rv.`alpha in let y = rv.`y in
     size y = size rp /\
-    forall k, 0 <= k < size y => 
-      (get def_yi y k).`v = fadd (fmul alpha (get def_ui rp k).`a) (get def_ui rp k).`b.
+    (forall k, 0 <= k < size y => 
+      (get def_yi y k).`v = fadd (fmul alpha (get def_ui rp k).`a) (get def_ui rp k).`b) /\
+    (forall k, 0 <= k < size y => 
+      (get def_yi y k).`v' = fadd (fmul alpha (get def_ui rp k).`a') (get def_ui rp k).`b').
 
   (** Prover output type. At the end of the protocol, the prover has no output *)
   type prover_output_t = unit. 
@@ -135,6 +139,8 @@ theory LPZKEfficient.
 
   (** Generates the [z] data structure based on the prover algorithm, taking inputs and 
       randomness stored in arrays *)
+print gen_z.
+
   op gen_z (u : prover_rand_t) (gg : gates_t) (xp : t array) (xs : t array) : z_t =
     with gg = PInput wid => 
       let b = (get def_ui u wid).`b in
@@ -152,25 +158,35 @@ theory LPZKEfficient.
       ConstantZ gid {| m = fsub w b |}
 
     with gg = Addition gid wl wr =>
-      AdditionZ gid {| m = fzero |} (gen_z u wl xp xs) (gen_z u wr xp xs)
+      let b = (get LPZK.def_ui u gid).`b in  
+      let w = eval_gates_array gg xp xs in
+      AdditionZ gid {| m = fsub w b |} (gen_z u wl xp xs) (gen_z u wr xp xs)
 
     with gg = Multiplication gid l r => 
       let wl = eval_gates_array l xp xs in
       let wr = eval_gates_array r xp xs in
       let w = fmul wl wr in
-
-      let ui = get def_ui u gid in
-      let ai = ui.`a in
-      let bi = ui.`b in
-
-      let ul = get def_ui u (get_gid l) in
-      let al = ul.`a in
-
-      let ur = get def_ui u (get_gid r) in
-      let ar = ur.`a in
-
-      MultiplicationZ gid {| m = fsub w bi |}
-                          (gen_z u l xp xs) (gen_z u r xp xs).
+      let ui = get LPZK.def_ui u gid in
+      let a = ui.`a in
+      let b = ui.`b in
+      let a' = ui.`a' in
+      let b' = ui.`b' in
+      let ul = get LPZK.def_ui u (get_gid l)
+      in
+      let al = ul.`LPZK.a in
+      let bl = ul.`LPZK.b in
+      let a'l = ul.`LPZK.a' in
+      let b'l = ul.`LPZK.b' in
+      let ur = get LPZK.def_ui u (get_gid r)
+      in
+      let ar = ur.`LPZK.a in
+      let br = ur.`LPZK.b in
+      let a'r = ur.`LPZK.a' in
+      let b'r = ur.`LPZK.b' in
+      MultiplicationZ gid {| m_mul = fsub w b; 
+                             m' = fsub (fmul al ar) a'; 
+                             c = fsub (fsub (fadd (fmul al wr) (fmul ar wl)) a) b'; |}
+        (gen_z u l xp xs) (gen_z u r xp xs).
 
  (** Gets the random [a] value from the prover randomness, i.e., gets the [a] random value
       associated with the ouput circuit gate *)
@@ -203,13 +219,13 @@ theory LPZKEfficient.
 
   (** Generates the [f] data structure based on the verifier algorithm, taking inputs and 
       randomness stored in arrays *)
-  op gen_f (r : verifier_rand_t) (gg : gates_t) (z : z_t) =
+  op gen_f (r : verifier_rand_t) (gg : gates_t) (z : z_t) : bool * f_t =
     with z = PInputZ wid zi => 
       if is_pinput gg then
         if as_pinput gg = wid then
           let m = zi.`m in
           let v = (get def_yi r.`y wid).`v in
-          (true, PInputF {| e = fadd v m |})
+          (true, PInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
         else (false, bad)
       else (false, bad)
 
@@ -218,7 +234,7 @@ theory LPZKEfficient.
         if as_sinput gg = wid then
           let m = zi.`m in
           let v = (get def_yi r.`y wid).`v in
-          (true, SInputF {| e = fadd v m |})
+          (true, SInputF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
         else (false, bad)
       else (false, bad)
 
@@ -227,7 +243,7 @@ theory LPZKEfficient.
         if (as_constant gg).`1 = gid then
           let m = zi.`m in
           let v = (get def_yi r.`y gid).`v in
-          (true, ConstantF {| e = fadd v m |})
+          (true, ConstantF {| e = fadd v m ; e' = fzero ; e'' = fzero |})
         else (false, bad)
       else (false, bad)
 
@@ -238,8 +254,10 @@ theory LPZKEfficient.
         if gid = gid' then
           let (bl, fl) = gen_f r wl zl in
           let (br, fr) = gen_f r wr zr in
+          let m = zi.`m in
+          let v = (get def_yi r.`y gid).`v in
           if (bl /\ br) then
-            (true, AdditionF {| e = fadd (get_e fl) (get_e fr) |} fl fr)
+            (true, AdditionF {| e = fadd v m ; e' = fzero ; e'' = fzero |} fl fr)
           else (false, bad)
         else (false, bad)
       else (false, bad)
@@ -252,34 +270,42 @@ theory LPZKEfficient.
           let (bl, fl) = gen_f r wl zl in
           let (br, fr) = gen_f r wr zr in
 
-          let m = zi.`m in
+          let m = zi.`m_mul in
+          let m' = zi.`m' in
 
           let alpha = r.`alpha in
           let y = get def_yi r.`y gid in
           let v = y.`v in
+          let v' = y.`v' in
 
           let el = get_e fl in
           let er = get_e fr in
-  
+
           let e = fadd v m in
+          let e' = fadd v' (fmul alpha m') in
+          let e'' = fsub (fsub (fmul el er) e) (fmul alpha e') in
 
           if (bl /\ br) then
-            (true, MultiplicationF {| e = e |} fl fr)
+            (true, MultiplicationF {| e = e ; e' = e' ; e'' = e'' |} fl fr)
           else (false, bad)
         else (false, bad)
       else (false, bad).
+
 
   (** New [prove] function, equal to the [prove] function specified in *LPZK.ec*, but invokes
       the newly defined array-based [gen_f] operator *)
   op prove (r : verifier_rand_t) (x : verifier_input_t) (c : commitment_t) : bool =
     let (z, z') = c in
     let (circ, inst) = x in
-    let topo = circ.`topo in
-    let gg = circ.`gates in
-    let (b, f) = gen_f r ((add_final_mul circ).`gates) z in
-    let n = z' in
-    if (n <> fzero /\ b) then 
-        get_e f = fmul n r.`alpha
+    if (valid_circuit circ) then
+      let circ = add_final_mul circ in
+      let n = z' in
+      if n <> fzero then
+        let (b, f) = gen_f r circ.`gates z in
+        if (b /\ batch_check f z r.`alpha) then
+          get_e f = fmul n r.`alpha
+        else false
+      else false
     else false.
 
   (** The trace is the same as in **LPZK** *)
@@ -318,7 +344,18 @@ theory LPZKEfficient.
       by move => wid; progress; rewrite !nth_to_list /=.
       by move => gid c; progress; rewrite !nth_to_list /=.
       by move => gid l r; progress; rewrite !nth_to_list /= !eval_gates_array_eq => /#.
+      by move => gid l r; progress; rewrite !nth_to_list /= !eval_gates_array_eq => /#.
     by rewrite /get_a /= !nth_to_list.
+    elim gg => //.
+      by move => wid; progress; rewrite !nth_to_list /=.
+      by move => wid; progress; rewrite !nth_to_list /=.
+      by move => gid c; progress; rewrite !nth_to_list /=.
+      by move => gid l r; progress; rewrite !nth_to_list /= !eval_gates_array_eq => /#.
+      by move => gid l r; progress; rewrite !nth_to_list /= !eval_gates_array_eq => /#.
+    elim gg => //.
+      by move => wid; progress; rewrite !nth_to_list /=.
+      by move => wid; progress; rewrite !nth_to_list /=.
+      by move => gid c; progress; rewrite !nth_to_list /=.
   qed.
 
   (** Proves that producing a commit using the array-based LPZK version, where inputs and 
@@ -344,6 +381,17 @@ theory LPZKEfficient.
       by move => wid; progress; rewrite !get_of_list /=.
       by move => gid c; progress; rewrite !get_of_list /=.
       by move => gid l r; progress; rewrite !get_of_list /= !eval_gates_list_eq => /#.
+      by move => gid l r; progress; rewrite !get_of_list /= !eval_gates_list_eq => /#.
+    elim gg => //.
+      by move => wid; progress; rewrite !get_of_list /=.
+      by move => wid; progress; rewrite !get_of_list /=.
+      by move => gid c; progress; rewrite !get_of_list /=.
+    elim gg => //.
+      by move => wid; progress; rewrite !get_of_list /=.
+      by move => wid; progress; rewrite !get_of_list /=.
+      by move => gid c; progress; rewrite !get_of_list /=.
+      by move => gid l r; progress; rewrite !get_of_list /= !eval_gates_list_eq => /#.
+      by move => gid l r; progress; rewrite !get_of_list /= !eval_gates_list_eq => /#.
     by rewrite /get_a /= !get_of_list.
   qed.
 
@@ -358,7 +406,7 @@ theory LPZKEfficient.
       by move => gid zi gg; progress; rewrite !nth_to_list /= /create_verifier_rand /=.
       by move => gid zi gg; progress; rewrite !nth_to_list /= /create_verifier_rand /=.
       by move => gid zi gg; progress; rewrite !nth_to_list /= /create_verifier_rand /=.
-      move => gid zl zr; progress.
+      move => gid zi zl zr; progress.
         case (is_addition gg); progress.
         have : exists gid' wl wr, gg = Addition gid' wl wr by
           exists (as_addition gg).`1 (as_addition gg).`2 (as_addition gg).`3 => /#.
@@ -383,9 +431,8 @@ theory LPZKEfficient.
         clear H2 H3 H4 H5.
         move : (H wl); progress.
         move : (H0 wr); progress.
-        rewrite H2 H3 /=.
-        by case ((gen_f rv wl zl).`1 /\ (gen_f rv wr zr).`1); last first; progress.
-      move => gid z zl zr; progress.
+        by rewrite H2 H3 /=; smt.
+      move => gid zi zl zr; progress.
         case (is_multiplication gg); progress.
         have : exists gid' wl wr, gg = Multiplication gid' wl wr by
           exists (as_multiplication gg).`1 (as_multiplication gg).`2 (as_multiplication gg).`3 => /#.
@@ -427,12 +474,12 @@ theory LPZKEfficient.
       array-based formalization provided here *)
   lemma protocol_equivalence_faster (rp : prover_rand_t) (rv : verifier_rand_t) 
                                     topo gg ys w inst : 
-    LPZKFaster.DVNIZKPProtocol.protocol (to_list rp, (create_verifier_rand rv.`alpha (to_list rv.`y))) ((to_list w, ({| topo = topo ; gates = gg ; out_wires = ys |}, to_list inst)), ({| topo = topo ; gates = gg ; out_wires = ys |}, to_list inst)) = 
+    LPZKFaster.DVNIZKProtocol.protocol (to_list rp, (create_verifier_rand rv.`alpha (to_list rv.`y))) ((to_list w, ({| topo = topo ; gates = gg ; out_wires = ys |}, to_list inst)), ({| topo = topo ; gates = gg ; out_wires = ys |}, to_list inst)) = 
     protocol (rp, rv) ((w, ({| topo = topo ; gates = gg ; out_wires = ys |}, inst)), ({| topo = topo ; gates = gg ; out_wires = ys |}, inst)).
   proof. by smt(prove_equivalence_faster commit_equivalence_faster). qed.
 
   (** Instantiation of the DVNIZK protocol syntax with the array-based LPZK types and operators *)
-  clone import ADVNIZKPProtocol.DVNIZKPProtocol with
+  clone import ADVNIZKProtocol.DVNIZKProtocol with
     type witness_t = witness_t,
     type statement_t = statement_t,
     type prover_input_t = prover_input_t,
@@ -468,23 +515,25 @@ theory LPZKEfficient.
     elim xv => c inst /=.
     elim c => topo gg ys /=.
     progress.
-    have ->: (DVNIZKPProtocol.relation w ({| topo = topo ; gates = gg ; out_wires = ys |}, inst)) = LPZKFaster.DVNIZKPProtocol.relation (to_list w) ({| topo = topo ; gates = gg ; out_wires = ys |}, to_list inst) by
+    have ->: (DVNIZKProtocol.relation w ({| topo = topo ; gates = gg ; out_wires = ys |}, inst)) = LPZKFaster.DVNIZKProtocol.relation (to_list w) ({| topo = topo ; gates = gg ; out_wires = ys |}, to_list inst) by
       rewrite /relation /= /eval_circuit /eval_circuit_array /= eval_gates_list_eq; smt(of_listK).
-    rewrite /DVNIZKPProtocol.protocol -(protocol_equivalence_faster rp rv topo gg ys w inst) 
-            LPZKFaster.DVNIZKPProtocol.correct /valid_inputs //=; first by rewrite !size_to_list.
+    rewrite /DVNIZKProtocol.protocol -(protocol_equivalence_faster rp rv topo gg ys w inst) 
+            LPZKFaster.DVNIZKProtocol.correct /valid_inputs //=; first by rewrite !size_to_list.
       move : H2.
       rewrite /valid_rands /= /valid_rand_prover /valid_rand_verifier /=; progress.
         by rewrite size_to_list.
-        by rewrite -nth_to_list.
+        rewrite -nth_to_list H3. move : H8. rewrite size_to_list. smt(). done.
         by rewrite /create_verifier_rand /= !size_to_list.
-        move : H7; rewrite /create_verifier_rand /= size_to_list /=; progress.
+        move : H8; rewrite /create_verifier_rand /= size_to_list /=; progress.
+        by rewrite -!nth_to_list => /#.
+        move : H8; rewrite /create_verifier_rand /= size_to_list /=; progress.
         by rewrite -!nth_to_list => /#.
   qed.
 
   (** Completeness proof *)
   (** First, we import the completeness security definition instantiated with LPZKFasterArray *)
   clone import Completeness as LZPKCompleteness with
-    theory DVNIZKPProtocol <- DVNIZKPProtocol.
+    theory DVNIZKProtocol <- DVNIZKProtocol.
 
   section Completeness.
 
@@ -517,7 +566,7 @@ theory LPZKEfficient.
   (** Soundness proof *)
   (** First, we import the soundness security definition instantiated with LPZKFasterArray *)
   clone import Soundness as LPZKSoundness with
-    theory DVNIZKPProtocol <- DVNIZKPProtocol.
+    theory DVNIZKProtocol <- DVNIZKProtocol.
 
   section Soundness.
 
@@ -550,7 +599,7 @@ theory LPZKEfficient.
         game of **LPZKFasterArray**. If both games are equivalent, then they will have the same
         soundness error, which was already proved in *LPZK.ec* *)
     lemma soundness_eq :
-      equiv [ Soundness(RVA, MPA).main ~ LPZKFaster.LPZKSoundness.Soundness(LPZK.RV, MP).main : 
+      equiv [ Soundness(RVA, MPA).main ~ LPZKFaster.LPZKFasterSoundness.Soundness(LPZK.RV, MP).main : 
               to_list rp{1} = rp{2} /\ (x{1}.`1, to_list x{1}.`2) = x{2} /\ 
               ={glob LPZK.RV, glob MP} ==> ={res} ].
     proof.
@@ -566,14 +615,24 @@ theory LPZKEfficient.
         move : (H2 k); rewrite H0 H1 /= /LPZKEfficient.def_yi /= /def_yi /= 
                                /LPZKEfficient.def_ui /= /def_ui /=.
         by progress; rewrite of_listK. 
+        move : H; rewrite /valid_rand_verifier /= !size_of_list !get_of_list.
+        progress.
+        move : (H3 k); rewrite H0 H1 /= /LPZKEfficient.def_yi /= /def_yi /= 
+                               /LPZKEfficient.def_ui /= /def_ui /=.
+        by progress; rewrite of_listK. 
         by move : H; rewrite /valid_rand_verifier /=; rewrite !size_of_list !size_to_list.
         move : H H1.
         rewrite /valid_rand_verifier /= !size_of_list !size_to_list.
-        progress; move : (H1 k).
-        by rewrite H0 H2 /= !get_of_list /LPZKEfficient.def_yi /= /def_yi /= 
+        progress. move : (H1 k).
+        by rewrite H0 H3 /= !get_of_list /LPZKEfficient.def_yi /= /def_yi /= 
+                   /LPZKEfficient.def_ui /= /def_ui /= !of_listK.
+        move : H H1.
+        rewrite /valid_rand_verifier /= !size_of_list !size_to_list.
+        progress. move : (H2 k).
+        by rewrite H0 H3 /= !get_of_list /LPZKEfficient.def_yi /= /def_yi /= 
                    /LPZKEfficient.def_ui /= /def_ui /= !of_listK.
       wp; skip; progress.
-      case (LPZKFaster.DVNIZKPProtocol.language (x{1}.`1, to_list x{1}.`2)); progress.
+      case (LPZKFaster.DVNIZKProtocol.language (x{1}.`1, to_list x{1}.`2)); progress.
         have ->: language x{1}.
           move : H0.
           rewrite /language /=; progress.
@@ -586,9 +645,9 @@ theory LPZKEfficient.
       have ->: !language x{1}.
         move : H0.
         rewrite /language /=; progress.
-        have : forall w, !LPZKFaster.DVNIZKPProtocol.relation w (x{1}.`1, to_list x{1}.`2) by smt().
+        have : forall w, !LPZKFaster.DVNIZKProtocol.relation w (x{1}.`1, to_list x{1}.`2) by smt().
         progress.
-        have : forall w, !(relation w x{1})%DVNIZKPProtocol. 
+        have : forall w, !(relation w x{1})%DVNIZKProtocol. 
           progress.
           move : (H1 (to_list w)).
           rewrite /relation /=.
@@ -597,16 +656,16 @@ theory LPZKEfficient.
           by elim c => topo gg /=; smt.
         by smt().
       simplify.
-      rewrite /DVNIZKPProtocol.prove /LPZKFaster.DVNIZKPProtocol.prove.
+      rewrite /DVNIZKProtocol.prove /LPZKFaster.DVNIZKProtocol.prove.
       by smt(prove_equivalence_faster @Array).
     qed.
 
     (** Since the two soundness games are equivalent, they will have the same soundness error *)
     lemma soundness &m (x_ : statement_t) rp_ :
-                                 Pr [ Soundness(RVA, MPA).main(rp_, x_) @ &m : res ] <= 1%r / q%r.
+                                 Pr [ Soundness(RVA, MPA).main(rp_, x_) @ &m : res ] <= 2%r / q%r.
     proof.
       have ->: Pr[Soundness(RVA, MPA).main(rp_, x_) @ &m : res] = 
-               Pr[LPZKFaster.LPZKSoundness.Soundness(LPZK.RV, MP).main(to_list rp_, (x_.`1, to_list x_.`2)) @ &m : res]
+               Pr[LPZKFaster.LPZKFasterSoundness.Soundness(LPZK.RV, MP).main(to_list rp_, (x_.`1, to_list x_.`2)) @ &m : res]
         by byequiv soundness_eq.
       by rewrite (LPZKFaster.soundness MP).
     qed.
@@ -615,25 +674,27 @@ theory LPZKEfficient.
 
   (** Zero-knowledge proof *)
   (** First, we import the zero-knowledge security definition instantiated with LPZKFasterArray *)
-  clone import ZeroKnowledge as LPZKArrayZeroKnowledge with
-    theory DVNIZKPProtocol <- DVNIZKPProtocol.
+  clone import DVNIZKZeroKnowledge.ZeroKnowledge as LPZKEfficientZeroKnowledge with
+    theory DVNIZKProtocol <- DVNIZKProtocol.
 
   section ZeroKnowledge.
 
-    (** Distinguisher declaration *)    
-    declare module D <: LPZKFaster.LPZKZeroKnowledge.Distinguisher_t.
-    (** Malicious verifier declaration *)    
-    declare module MV <: LPZKFaster.LPZKZeroKnowledge.MVerifier_t{-D}.
-
     (** Distinguisher wrapper, that uses the list-based distinguisher to build a distinguisher 
         for the array-based LPZK version *)
-    module DArray = {
-      proc guess(x : witness_t * statement_t * trace_t option) : bool = {
-        var b, w, st, to, inst, c;
+    module DArray (D : LPZKFaster.LPZKFasterZeroKnowledge.Distinguisher_t) = {
+      proc init() : prover_input_t * verifier_input_t = {
+        var xp, xv, w, stp, cp, instp, cv, instv;
+
+        (xp, xv) <@ D.init();
+        (w, stp) <- xp;
+        (cp, instp) <- stp;
+        (cv, instv) <- xv;
+        return ((of_list w, (cp, of_list instp)), (cv, of_list instv));
+      }
+      proc guess(to : trace_t option) : bool = {
+        var b;
     
-        (w, st, to) <- x;
-        (c, inst) <- st;
-        b <@ D.guess((to_list w, (c, to_list inst), to));
+        b <@ D.guess(to);
         return b;
       }
     }.
@@ -641,12 +702,11 @@ theory LPZKEfficient.
     (** Randomness generator wrapper, that uses the list-based prover random generator of
         file *LPZK.ec* to generate randomness for the array-based LPZK prover *)
     module RPArray = {
-      proc gen (xp : prover_input_t) : prover_rand_t = {
-        var r, w, st, c, inst;
+      proc gen (x : statement_t) : prover_rand_t = {
+        var r, c, inst;
         
-        (w, st) <- xp;
-        (c, inst) <- st;
-        r <@ RP.gen((to_list w, (c, to_list inst)));
+        (c, inst) <- x;
+        r <@ RP.gen(((c, to_list inst)));
 
         return (of_list r);
       }
@@ -654,7 +714,7 @@ theory LPZKEfficient.
 
     (** Malicious verifier wrapper, that uses the list-based malicious verifier to build a 
         malicious verifier for the array-based LPZK version *)
-    module MVArray = {
+    module MVArray (MV : LPZKFaster.LPZKFasterZeroKnowledge.MVerifier_t) = {
       proc prove(x : statement_t, c : commitment_t) : bool = {
         var b, circ, inst;
 
@@ -664,6 +724,11 @@ theory LPZKEfficient.
       } 
     }.
 
+    (** Distinguisher declaration *)
+    declare module D <: LPZKFaster.LPZKFasterZeroKnowledge.Distinguisher_t{-RealEvaluator, -IdealEvaluator, -Simulator, -LPZKZeroKnowledge.IdealEvaluator, -LPZKZeroKnowledge.RealEvaluator, -LPZKFasterZeroKnowledge.IdealEvaluator, -LPZKFasterZeroKnowledge.RealEvaluator}.
+    (** Malicious verifier declaration *)    
+    declare module MV <: LPZKFaster.LPZKFasterZeroKnowledge.MVerifier_t{-D, -RealEvaluator, -Simulator, -LPZKZeroKnowledge.IdealEvaluator, -LPZKZeroKnowledge.RealEvaluator, -LPZKFasterZeroKnowledge.IdealEvaluator, -LPZKFasterZeroKnowledge.RealEvaluator}.
+
     (** Establishes the equivalence between the *real* world game of **LPZK** and the *real*
         world game of **LPZKFasterArray**. If both games are equivalent, then the *real* world of
         **LPZKFasterArray** will also be equivalent to the *ideal* world game of **LPZK** and,
@@ -672,43 +737,71 @@ theory LPZKEfficient.
 
         In contrast to what we did for **LPZKFaster**, we directly prove the equivalence based
         on the output probability distribution of both games *)    
-    lemma zero_knowledge &m (w : LPZKFaster.witness_t) (x : LPZKFaster.statement_t) :
-      valid_circuit x.`1 =>
-      relation w x =>
-      size w = x.`1.`topo.`nsinputs =>
-      size x.`2 = x.`1.`topo.`npinputs =>
-      Pr[ GameReal(DArray, RPArray, MVArray).main(of_list w, (fst x, of_list (snd x))) @ &m : res ] = 
-      Pr[ LPZK.LPZKZeroKnowledge.GameIdeal(D, RP, MV, LPZK.Simulator).main(w,x) @ &m : res ].
-    proof.  
-      progress.
-      rewrite -(LPZK.zero_knowledge D MV) //=; byequiv => //=.
-      proc; inline *.
-      sp 8 5 => /=.
-      seq 3 3 : (#pre /\ rp1{1} = rp0{2}).
+    lemma zero_knowledge &m :
+      Pr[ GameReal(DArray(D), RPArray, MVArray(MV)).main() @ &m : res ] = 
+      Pr[ LPZK.LPZKZeroKnowledge.GameIdeal(D, MV, LPZK.Simulator).main() @ &m : res ].
+    proof.
+rewrite -(LPZKFaster.zero_knowledge D MV).
+byequiv => //=.
+proc; inline*.
+conseq (_ : ={glob D, glob MV} ==> ).
+done.
+seq 1 1 : (#pre /\ xp0{1} = xp{2} /\ xv0{1} = xv{2}).
+call (_ : true); skip; progress.
+sp.
+if => //=; last first.
+wp; call (_ : true); wp; skip; progress.
+rewrite /valid_inputs //=.
+progress.
+smt(@Array).
+smt(@Array).
+smt(@Array).
+smt(@Array).
+smt(@Array).
+      sp 9 7 => /=.
+      seq 3 3 : (#pre /\ rp0{1} = rp0{2}).
         case (topo{2}.`npinputs + topo{2}.`nsinputs + topo{2}.`ngates < 0).
           rcondf{1} 3. progress. wp; skip; progress. smt().
           rcondf{2} 3. progress. wp; skip; progress. smt().
           wp; skip; progress.
-        while (#pre /\ ={i} /\ 0 <= i{2} <= topo{2}.`npinputs + topo{2}.`nsinputs + topo{2}.`ngates /\ rp1{1} = rp0{2}).
+smt().
+smt().
+smt().
+smt().
+
+        while (#pre /\ ={i} /\ 0 <= i{2} <= topo{2}.`npinputs + topo{2}.`nsinputs + topo{2}.`ngates /\ rp0{1} = rp0{2}).
           wp.
           do rnd.
           wp; skip; progress.
             smt().
             smt().
+smt().
+smt().
+smt().
+smt().
+smt().
+smt().
           wp; skip; progress.
             smt().
-      seq 8 7 : (#pre /\ rp{1} = of_list rp{2} /\ rp1{1} = rp0{2}).
-       by  wp; do rnd; wp; do rnd; skip; progress.
-      if => //=; last by rnd.
+smt().
+smt().
+smt().
+smt().
+smt().
+smt().
+      seq 12 11 : (#pre /\ rp{1} = of_list rp{2} /\ rp0{1} = rp0{2}).
+       by  wp; do rnd; wp; do rnd; skip; progress; smt().
+      if => //=; last first.
+wp; call (_ : true); wp; skip; progress.
+
         progress.
-          by move : H3; rewrite /valid_rand_prover /=; progress; smt(@Array).
-          by move : H3; rewrite /valid_rand_prover /=; progress; smt(@Array).
-          by move : H3; rewrite /valid_rand_prover /=; progress; smt(@Array).
-          by move : H3; rewrite /valid_rand_prover /=; progress; smt(@Array).
+          by move : H0; rewrite /valid_rand_prover /=; progress; smt(@Array).
+          by move : H0; rewrite /valid_rand_prover /=; progress; smt(@Array).
+          by move : H0; rewrite /valid_rand_prover /=; progress; smt(@Array).
+          by move : H0; rewrite /valid_rand_prover /=; progress; smt(@Array).
       wp; call (_ : true); wp; call (_ : true); wp; skip; progress. 
-        by move : H3; rewrite /valid_rand_prover /=; progress; smt(@Array).
+        by move : H0; rewrite /valid_rand_prover /=; progress; smt(@Array).
         by smt.       
-        by rewrite to_listK.
     qed.      
 
   end section ZeroKnowledge.

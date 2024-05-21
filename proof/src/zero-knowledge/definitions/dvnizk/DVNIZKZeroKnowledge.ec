@@ -22,46 +22,27 @@
 *)
 require import DBool.
 
-from DVNIZK require import ADVNIZKPProtocol.
+from DVNIZK require import ADVNIZKProtocol.
 
 theory ZeroKnowledge.
 
   (** Cloning an abstract DVNIZK protocol. When instantiating zero-knowledge, a concrete protocol
       must be provided. *)
-  clone import DVNIZKPProtocol.
+  clone import DVNIZKProtocol.
 
   (** Type of randomness generator procedures. Modules that realize this type should contain a 
       **gen** function that takes as input the prover input and generates the prover
       randomness *)
   module type RandP_t = {
-    proc gen(xp : prover_input_t) : prover_rand_t
+    proc gen(xp : statement_t) : prover_rand_t
   }.
 
   (** Distinguisher type. The distinguisher will be given a protocol trace and, knowing the
       witness and the statement, try to distinguish if the trace received came from a protocol
       execution or from a simulator *)
   module type Distinguisher_t = {
-    proc guess(_ : witness_t * statement_t * trace_t option) : bool
-  }.
-
-  (** Evalutator type. Modules that realize the **Evaluator_t** type must produce a protocol
-      trace, given the inputs to the protocol and the appropriate prover randomness *)
-  module type Evaluator_t = {
-    proc eval(w : witness_t, x : statement_t, rp : prover_rand_t) : trace_t option
-  }.
-
-  (** Zero-knowledge cryptographic experience *)
-  module ZKGame (D : Distinguisher_t) (RP : RandP_t) (E : Evaluator_t) = {
-    proc main(w : witness_t, x : statement_t) : bool = {
-      var ctr, rp, b';
-
-      rp <@ RP.gen(w,x);
-      if (DVNIZKPProtocol.valid_rand_prover rp (w,x)) {
-        ctr <@ E.eval(w,x,rp);
-        b' <@ D.guess(w,x,ctr);
-      } else { b' <${0,1}; } 
-      return b';
-    }
+    proc init() : prover_input_t * verifier_input_t
+    proc guess(_ : trace_t option) : bool
   }.
 
   (** Malicious verifier type. A malicious verifier is able to produce a decision given the
@@ -70,49 +51,93 @@ theory ZeroKnowledge.
     proc prove(x : statement_t, c : commitment_t) : bool
   }.
 
-  (** Real evaluator module. In this module, an execution of the protocol with a dishonest
-      verifier takes plance *)
-  module RealEvaluator (MV : MVerifier_t) = {
-    proc eval(w : witness_t, x : statement_t, rp : prover_rand_t) : trace_t option = {
-      var c, b, r;
-
-      c <- commit rp (w,x);
-      b <@ MV.prove(x, c);
-      r <- Some c;
-
-      return r;
-    }
+  (** Evalutator type. Modules that realize the **Evaluator_t** type must produce a protocol
+      trace, given the inputs to the protocol and the appropriate prover randomness *)
+  module type Evaluator_t = {
+    proc init(x : prover_input_t * verifier_input_t) : unit
+    proc eval() : trace_t option
   }.
 
   (** Simulator type. A simulator should be able to *simulate* a commitment, given only the 
       prover randomness and the statement (i.e., without knowing the witness) *)
   module type Simulator_t = {
-    proc gen_commitment(rp : prover_rand_t, x : statement_t) : commitment_t option
+    proc init(x : statement_t) : unit
+    proc gen_commitment() : commitment_t option
+  }.
+
+  (** Real evaluator module. In this module, an execution of the protocol with a dishonest
+      verifier takes plance *)
+  module RealEvaluator (RP : RandP_t) (MV : MVerifier_t) = {
+    var xp : prover_input_t
+
+    proc init(x : prover_input_t * verifier_input_t) : unit = {
+      xp <- x.`1;
+    }
+    proc eval() : trace_t option = {
+      var c, b, r, rp;
+
+      r <- None;
+      rp <@ RP.gen(xp.`2);
+      if (valid_rand_prover rp xp.`2) {
+        c <- commit rp xp;
+        b <@ MV.prove(xp.`2, c);
+        r <- Some c;
+      }
+      return r;
+    }
   }.
 
   (** Ideal evaluator module. In this module, the dishonest verifier interacts with a simulator
       instead of with a real prover party *)
   module IdealEvaluator (MV : MVerifier_t) (S : Simulator_t) = {
-    proc eval(w : witness_t, x : statement_t, rp : prover_rand_t) : trace_t option = {
+    var yv : verifier_output_t
+    var statement : statement_t
+    var xp : prover_input_t
+
+    proc init(x : prover_input_t * verifier_input_t) : unit = {
+      S.init(x.`2);
+      yv <- relation x.`1.`1 x.`2;
+      statement <- x.`2;
+      xp <- x.`1;
+    }
+
+    proc eval() : trace_t option = {
       var c, b, ret, oc;
 
       ret <- None;
-      oc <@ S.gen_commitment(rp, x);
-      if (oc <> None) {
-        c <- oget oc;
-        b <@ MV.prove(x, c);
-        ret <- Some c;
+        oc <@ S.gen_commitment();
+        if (oc <> None) {
+          c <- oget oc;
+          b <@ MV.prove(statement, c);
+          ret <- Some c;
+        }
+      return ret;
+    }
+  }.
+
+  (** Zero-knowledge cryptographic experience *)
+  module ZKGame (D : Distinguisher_t) (E : Evaluator_t) = {
+    proc main() : bool = {
+      var xp, xv, v, b';
+
+      (xp, xv) <@ D.init();
+      v <- None;
+      if (valid_inputs (xp, xv)) {
+        E.init(xp, xv);
+        v <@ E.eval();
       }
 
-      return ret;
+      b' <@ D.guess(v);
+
+      return b';
     }
   }.
 
   (** *Real* world game of the zero-knowledge definition. The *real* world instantiates the 
       **ZKGame** with the real evaluator *)
-  module GameReal (D : Distinguisher_t) (RP : RandP_t) (MV : MVerifier_t) = ZKGame(D,RP,RealEvaluator(MV)).
+  module GameReal (D : Distinguisher_t) (RP : RandP_t) (MV : MVerifier_t) = ZKGame(D,RealEvaluator(RP, MV)).
   (** *Ideal* world game of the zero-knowledge definition. The *ideal* world instantiates the 
       **ZKGame** with the ideal evaluator and with a simulator **S** *)
-  module GameIdeal (D : Distinguisher_t) (RP : RandP_t) (MV : MVerifier_t) (S : Simulator_t) = ZKGame(D,RP,IdealEvaluator(MV,S)).
+  module GameIdeal (D : Distinguisher_t) (MV : MVerifier_t) (S : Simulator_t) = ZKGame(D,IdealEvaluator(MV,S)).
 
 end ZeroKnowledge.

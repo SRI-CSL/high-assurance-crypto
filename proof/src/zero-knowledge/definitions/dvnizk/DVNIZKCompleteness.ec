@@ -13,13 +13,13 @@
     forall (R <: Rand_t) (w : witness_t) (x : statement_t),
       relation w x => [ Completeness(R).main(w, x) : true ==> res ]
 *)
-from DVNIZK require import ADVNIZKPProtocol.
+from DVNIZK require import ADVNIZKProtocol.
 
 theory Completeness.
 
   (** Cloning an abstract DVNIZK protocol. When instantiating completeness, a concrete protocol
       must be provided. *)
-  clone import DVNIZKPProtocol.
+  clone import DVNIZKProtocol.
 
   (** Type of randomness generator procedures. Modules that realize this type should contain a 
       **gen** function that takes no input and produces both the prover and verifier randomness *)
@@ -35,7 +35,7 @@ theory Completeness.
 
       (r_p, r_v) <@ R.gen();
 
-      if (valid_inputs ((w,x),x) /\ valid_rands (r_p, r_v) ((w,x),x)) {
+      if (valid_inputs ((w,x),x) /\ valid_rands (r_p, r_v) x /\ relation w x) {
         (tr,y) <- protocol (r_p, r_v) ((w,x), x);
         b <- (snd y);
       }
