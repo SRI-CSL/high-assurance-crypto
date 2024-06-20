@@ -17,7 +17,7 @@ module LPZK = struct
   let generate_lpzk_prover_randomness (ngates : int) : LPZK.prover_rand_t =
     let total_rand = ngates + 2 + 1 in
     let rp = Array.make total_rand LPZK.def_ui in
-    let generate_random_ui () = { a = dt () ; b = dt () } in
+    let generate_random_ui () = { a = dt () ; b = dt () ; a' = dt () ; b' = dt () } in
 
     for i = 0 to total_rand - 1 do
       Array.set rp i (generate_random_ui ())
@@ -32,14 +32,16 @@ module LPZK = struct
     for i = 0 to total_rand - 1 do
       let a = dt () in
       let b = dt () in
-      Array.set y i { v = Z.erem (Z.add (Z.mul a alpha) b) !LPZK.q }
+      let a' = dt () in
+      let b' = dt () in
+      Array.set y i { v = Z.erem (Z.add (Z.mul a alpha) b) !LPZK.q ; v' = Z.erem (Z.add (Z.mul a' alpha) b') !LPZK.q }
     done;
     { alpha = alpha ; y = y }
 
   let parallel_generate_lpzk_prover_randomness pool (ngates : int) : LPZK.prover_rand_t =
     let total_rand = ngates + 2 + 1 in
     let rp = Array.make total_rand LPZK.def_ui in
-    let generate_random_ui () = { a = dt () ; b = dt () } in
+    let generate_random_ui () = { a = dt () ; b = dt () ; a' = dt () ; b' = dt () } in
 
     Task.parallel_for pool ~start:0 ~finish:(total_rand - 1) ~body:(fun i ->
       Array.set rp i (generate_random_ui ())
@@ -54,7 +56,9 @@ module LPZK = struct
     Task.parallel_for pool ~start:0 ~finish:(total_rand - 1) ~body:(fun i ->
       let a = dt () in
       let b = dt () in
-      Array.set y i { v = Z.erem (Z.add (Z.mul a alpha) b) !LPZK.q }
+      let a' = dt () in
+      let b' = dt () in
+      Array.set y i { v = Z.erem (Z.add (Z.mul a alpha) b) !LPZK.q ; v' = Z.erem (Z.add (Z.mul a' alpha) b') !LPZK.q }
     );
     { alpha = alpha ; y = y }
 

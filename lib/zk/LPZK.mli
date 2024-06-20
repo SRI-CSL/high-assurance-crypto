@@ -1,3 +1,5 @@
+val witness : 'a
+
 val q : Z.t ref
 
 type witness_t = (Z.t) array
@@ -18,6 +20,10 @@ type gates_t =
   | Addition of (Z.t) * gates_t * gates_t
   | Multiplication of (Z.t) * gates_t * gates_t
 
+val is_pinput : gates_t -> bool
+
+val is_sinput : gates_t -> bool
+
 type circuit_t = topology_t * gates_t
 
 type statement_t = circuit_t * instance_t
@@ -31,6 +37,8 @@ type verifier_input_t = statement_t
 type ui_t = {
   a: Z.t;
   b: Z.t;
+  a' : Z.t;
+  b' : Z.t;
   }
 
 val def_ui : ui_t
@@ -41,6 +49,7 @@ type prover_rand_t = u_t
 
 type yi_t = {
   v: Z.t;
+  v' : Z.t;
   }
 
 val def_yi : yi_t
@@ -58,6 +67,8 @@ type verifier_output_t = bool
 
 type zi_t = {
   m: Z.t;
+  m' : Z.t; 
+  c2 : Z.t;
   }
 
 type zi_t1 = zi_t
@@ -74,7 +85,9 @@ type commitment_t = z_t * Z.t
 val commit : prover_rand_t -> prover_input_t -> commitment_t
 
 type fi_t = {
-  e: Z.t
+  e: Z.t;
+  e' : Z.t;
+  e'' : Z.t;
   }
 
 type f_t =
@@ -88,6 +101,6 @@ val bad : f_t
 
 val prove : verifier_rand_t -> verifier_input_t -> commitment_t -> bool
 
-type trace_t = z_t * Z.t
+type trace_t = z_t * (Z.t)
 
 val protocol : prover_rand_t * verifier_rand_t -> prover_input_t * verifier_input_t -> trace_t * (prover_output_t * verifier_output_t)

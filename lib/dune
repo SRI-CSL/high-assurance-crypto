@@ -3,6 +3,7 @@
 (library
  (name EVOCrypt)
  (public_name evocrypt)
+ (wrapped false)
  (modules EVOCrypt
           FieldPolynomial
           ACircuit ArithmeticCircuit 
