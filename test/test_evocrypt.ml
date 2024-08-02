@@ -1,6 +1,6 @@
 open Format
 
-open EVOCrypt
+open Evocrypt
 open EcLib
 open EcList
 open EcOption
