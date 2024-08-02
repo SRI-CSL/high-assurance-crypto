@@ -1,6 +1,6 @@
 open Format
 
-open EVOCrypt
+open Evocrypt
 open EcLib
 open EcList
 open EcOption
@@ -31,7 +31,7 @@ let p = Cons({ coef = Z.of_string "5" ; expo = Z.of_string "2"}, Cons({ coef = Z
 (* =========================================================================== *)
 (** Arithmetic circuit tests *)
 
-open EVOCrypt.Circuit.ArithmeticCircuit 
+open Circuit.ArithmeticCircuit 
 open ArithmeticGates
 
 let default_gates = Multiplication (Z.of_string "8", 
@@ -53,7 +53,7 @@ let _ =
 
 (* =========================================================================== *)
 (** Commitment test *)
-open EVOCrypt.Commitment.SHA3Commitment
+open Evocrypt.Commitment.SHA3Commitment
 
 let _ = 
   let msg = "The quick brown fox jumps over the lazy dog" in
@@ -65,7 +65,7 @@ let _ =
 
 (* =========================================================================== *)
 (** Secret sharing test *)
-open EVOCrypt.SecretSharing.Shamir
+open Evocrypt.SecretSharing.Shamir
 
 let p1 = Z.of_string "1"
 let p2 = Z.of_string "2"
@@ -103,20 +103,20 @@ let _ =
 
 (* =========================================================================== *)
 (** BGW test *)
-open EVOCrypt.SecretSharing.ASecretSharing
+open Evocrypt.SecretSharing.ASecretSharing
 
-open EVOCrypt.MPC.BGW.BGWAddition
-open EVOCrypt.MPC.BGW.BGWMultiplication
-open EVOCrypt.MPC.BGW.BGWSMultiplication
-open EVOCrypt.MPC.BGW.BGWRefresh
-open EVOCrypt.MPC.BGW.BGWProtocol
+open Evocrypt.MPC.BGW.BGWAddition
+open Evocrypt.MPC.BGW.BGWMultiplication
+open Evocrypt.MPC.BGW.BGWSMultiplication
+open Evocrypt.MPC.BGW.BGWRefresh
+open Evocrypt.MPC.BGW.BGWProtocol
 
 module BGW5Add = BGWAdditionGate (PC5)
 module BGW5Mul5 = BGWMultiplicationGate (PC5)
 module BGW5SMul = BGWSMultiplicationGate (PC5)
 module BGW5Refresh = BGWRefreshGate (PC5)
 
-open EVOCrypt.MPC.ArithmeticProtocol
+open Evocrypt.MPC.ArithmeticProtocol
 
 module BGW5Data = ArithmeticProtocolData (ShamirData (PC5)) (BGWAdditionData (PC5)) (BGWMultiplicationData (PC5)) (BGWSMultiplicationData (PC5))
 
@@ -214,8 +214,8 @@ let _ =
 
   let statement = (default_circuit, instance) in
 
-  let prover_rand = EVOCrypt.Random.LPZK.generate_lpzk_prover_randomness 7 in
-  let verifier_rand = EVOCrypt.Random.LPZK.generate_lpzk_verifier_randomness 7 in
+  let prover_rand = Evocrypt.Random.LPZK.generate_lpzk_prover_randomness 7 in
+  let verifier_rand = Evocrypt.Random.LPZK.generate_lpzk_verifier_randomness 7 in
 
   let c = LPZK.commit prover_rand (witness, statement) in
   let answer = LPZK.prove verifier_rand statement c in
