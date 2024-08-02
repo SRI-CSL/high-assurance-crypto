@@ -1,7 +1,7 @@
 (include_subdirs unqualified)
 
 (library
- (name eVOCrypt)
+ (name EVOCrypt)
  (public_name evocrypt)
  (modules EVOCrypt
           FieldPolynomial
