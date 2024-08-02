@@ -1,6 +1,6 @@
 (lang dune 3.14)
 
-(name EVOCrypt)
+(name evocrypt)
 
 (generate_opam_files true)
 
@@ -20,7 +20,6 @@
  (synopsis "EVOCrypt: EasyCrypt Verified OCaml Cryptographic Library")
  (description "EVOCrypt includes verified implementations of modern cryptographic algorithms including MPC protocols (BGW and Maurer), commitment schemes (SHA3-based), ZK protocols (MPC-in-the-Head and LPZK) and OLE/VOLE protocols based on additively homomorphic encryption schemes (Paillier-based OLE/VOLE). All implementations were developed and proven secure in EasyCrypt and were then extracted to OCaml using CoCoCrypt")
  (depends ocaml dune cryptokit zarith domainslib)
- (tags
-  (topics "to describe" your project)))
+ )
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
